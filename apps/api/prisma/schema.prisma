@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String              @unique
+  passwordHash  String              @map("password_hash")
+  fullName      String?             @map("full_name")
+  avatarUrl     String?             @map("avatar_url")
+  monthlyIncome Decimal?            @map("monthly_income") @db.Decimal(15, 0)
+  currency          String              @default("VND") @db.VarChar(50)
+  alias             String?
+  dateOfBirth       DateTime?           @map("date_of_birth") @db.Date
+  gender            Gender?
+  phoneNumber       String?             @map("phone_number") @db.VarChar(20)
+  isEmailVerified   Boolean             @default(false) @map("is_email_verified")
+  financialGoals    String[]            @map("financial_goals")
+  biometricEnabled  Boolean             @default(false) @map("biometric_enabled")
+  connectedDevices  Int                 @default(1) @map("connected_devices")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime?           @map("updated_at") @db.Timestamp(6)
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  goals             Goal[]
+  aiFeedback        AiCategoryFeedback[]
+  chatSessions      ChatSession[]
+
+  @@map("users")
+}
+
+model Category {
+  id                      Int                  @id @default(autoincrement())
+  name                    String
+  nameVi                  String?              @map("name_vi")
+  icon                    String?
+  color                   String?              @db.VarChar(7)
+  isSystem                Boolean              @default(true) @map("is_system")
+  userId                  String?              @map("user_id") @db.Uuid
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  user                    User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transactions            Transaction[]        @relation("TransactionCategory")
+  budgetEntries           Budget[]             @relation("BudgetCategory")
+  aiSuggestedTransactions Transaction[]        @relation("TransactionAiSuggestedCategory")
+  suggestedFeedbacks       AiCategoryFeedback[] @relation("FeedbackSuggestedCategory")
+  chosenFeedbacks          AiCategoryFeedback[] @relation("FeedbackChosenCategory")
+
+  @@map("categories")
+}
+
+model Transaction {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String            @map("user_id") @db.Uuid
+  categoryId            Int?              @map("category_id")
+  goalId                String?           @map("goal_id") @db.Uuid
+  type                  TransactionType
+  amount                Decimal           @db.Decimal(15, 0)
+  description           String?
+  note                  String?           @db.Text
+  transactionDate       DateTime          @map("transaction_date") @db.Date
+  receiptUrl            String?           @map("receipt_url")
+  source                TransactionSource @default(manual)
+  aiSuggestedCategoryId Int?              @map("ai_suggested_category")
+  aiConfidence          Decimal?          @map("ai_confidence") @db.Decimal(5, 2)
+  aiOverridden          Boolean           @default(false) @map("ai_overridden")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime?         @map("updated_at") @db.Timestamp(6)
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category              Category?         @relation("TransactionCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  goal                  Goal?             @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  aiSuggestedCategory   Category?         @relation("TransactionAiSuggestedCategory", fields: [aiSuggestedCategoryId], references: [id], onDelete: SetNull)
+  aiCategoryFeedback    AiCategoryFeedback?
+
+  @@map("transactions")
+}
+
+model Budget {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  categoryId Int       @map("category_id")
+  amount     Decimal   @db.Decimal(15, 0)
+  month      Int
+  year       Int
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime? @map("updated_at") @db.Timestamp(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category  @relation("BudgetCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, categoryId, month, year])
+  @@map("budgets")
+}
+
+model Goal {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String       @map("user_id") @db.Uuid
+  name          String
+  targetAmount  Decimal      @map("target_amount") @db.Decimal(15, 0)
+  currentAmount Decimal      @default(0) @map("current_amount") @db.Decimal(15, 0)
+  deadline      DateTime     @db.Date
+  priority      GoalPriority @default(medium)
+  status        GoalStatus   @default(active)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime?    @map("updated_at") @db.Timestamp(6)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@map("goals")
+}
+
+model AiCategoryFeedback {
+  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionId       String      @unique @map("transaction_id") @db.Uuid
+  userId              String      @map("user_id") @db.Uuid
+  suggestedCategoryId Int?        @map("suggested_category_id")
+  chosenCategoryId    Int?        @map("chosen_category_id")
+  confidence          Decimal?    @db.Decimal(5, 2)
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  transaction         Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestedCategory   Category?   @relation("FeedbackSuggestedCategory", fields: [suggestedCategoryId], references: [id], onDelete: SetNull)
+  chosenCategory      Category?   @relation("FeedbackChosenCategory", fields: [chosenCategoryId], references: [id], onDelete: SetNull)
+
+  @@map("ai_category_feedback")
+}
+
+model ChatSession {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  messages  Json?
+  startedAt DateTime @default(now()) @map("started_at") @db.Timestamp(6)
+  endedAt   DateTime? @map("ended_at") @db.Timestamp(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_sessions")
+}
+
+enum TransactionType {
+  income
+  expense
+  saving
+}
+
+enum TransactionSource {
+  manual
+  ai_quick
+  csv_import
+}
+
+enum GoalPriority {
+  high
+  medium
+  low
+}
+
+enum GoalStatus {
+  active
+  completed
+  cancelled
+}
+
+enum Gender {
+  male
+  female
+  other
+}

@@ -1,0 +1,919 @@
+Smart Money Manager – MVP v1.0
+Jira Backlog: Epics & User Stories
+7 Epics · 29 User Stories · Full Acceptance Criteria & Subtasks
+BRD-SMM-2026-001 · Lab Edition · 02/05/2026
+
+Backlog Summary
+Epic ID
+Epic Name (EN)
+Tiếng Việt
+Feature
+Stories
+Priority
+E-01
+Authentication & User Management
+Xác thực & Quản lý người dùng
+F-AUTH
+3
+P0
+E-02
+Transaction Management
+Quản lý giao dịch
+F-TXN
+5
+P0–P1
+E-03
+AI Quick Input – Natural Language Entry
+Nhập chi tiêu bằng ngôn ngữ tự nhiên
+F-AI-INPUT
+4
+P0
+E-04
+Financial Dashboard & Reports
+Dashboard & Báo cáo tài chính
+F-DASH
+4
+P0–P2
+E-05
+Budget Management
+Quản lý ngân sách
+F-BUDGET
+4
+P0–P1
+E-06
+AI Features – Auto-Categorization, Chatbot & Smart Insights
+Tính năng AI – Phân loại, Chatbot & Insights
+F-AI-CAT / F-AI-CHAT / F-AI-INSIGHT
+6
+P0–P1
+E-07
+Financial Goal Tracking
+Quản lý mục tiêu tài chính
+F-GOAL
+3
+P1
+
+
+EPIC: E-01 – Authentication & User Management (Xác thực & Quản lý người dùng)
+Feature: F-AUTH · 3 User Stories · Priority: P0
+
+[SMM-AUTH-01] [AUTH] User Registration
+Type
+Story
+Priority
+P0
+Epic
+E-01 – Authentication & User Management
+User Story
+Là người dùng, tôi muốn đăng ký tài khoản bằng email và mật khẩu để bắt đầu sử dụng ứng dụng.
+Acceptance Criteria
+✓  Form đăng ký có đủ các trường: Email, Mật khẩu, Xác nhận mật khẩu.
+
+✓  Validation: email đúng định dạng, mật khẩu tối thiểu 8 ký tự.
+
+✓  Sau khi đăng ký thành công, user được redirect vào màn hình onboarding/home.
+
+✓  Nếu email đã tồn tại, hiển thị thông báo lỗi rõ ràng.
+
+✓  Mật khẩu được hash bằng bcrypt trước khi lưu vào DB.
+
+✓  JWT token được tạo và lưu vào AsyncStorage sau khi đăng ký.
+Suggested Subtasks
+• SUB: Design registration screen UI (Figma → React Native)
+
+• SUB: Implement form validation logic (email & password rules)
+
+• SUB: Build POST /auth/register API endpoint
+
+• SUB: Implement bcrypt password hashing
+
+• SUB: Generate & return JWT token on success
+
+• SUB: Write unit test for registration endpoint
+
+[SMM-AUTH-02] [AUTH] User Login & Logout
+Type
+Story
+Priority
+P0
+Epic
+E-01 – Authentication & User Management
+User Story
+Là người dùng, tôi muốn đăng nhập và đăng xuất khỏi tài khoản để bảo vệ dữ liệu cá nhân.
+Acceptance Criteria
+✓  Form đăng nhập có trường Email và Mật khẩu.
+
+✓  Đăng nhập thành công: JWT token lưu vào AsyncStorage, redirect đến Home.
+
+✓  Đăng nhập thất bại: hiển thị thông báo 'Email hoặc mật khẩu không đúng'.
+
+✓  Đăng xuất xoá JWT token khỏi AsyncStorage và redirect về màn hình Login.
+
+✓  JWT token có expiry 24h; nếu hết hạn, tự động logout và thông báo user.
+Suggested Subtasks
+• SUB: Design login screen UI
+
+• SUB: Build POST /auth/login API endpoint
+
+• SUB: Implement JWT token storage (AsyncStorage/MMKV)
+
+• SUB: Implement logout action (clear token + redirect)
+
+• SUB: Handle expired token auto-logout middleware
+
+[SMM-AUTH-03] [AUTH] User Profile Management
+Type
+Story
+Priority
+P0
+Epic
+E-01 – Authentication & User Management
+User Story
+Là người dùng, tôi muốn cập nhật thông tin hồ sơ (tên, ảnh, thu nhập hàng tháng) để AI có đủ context tư vấn.
+Acceptance Criteria
+✓  Màn hình Profile hiển thị đầy đủ: tên, ảnh đại diện, email, thu nhập hàng tháng, đơn vị tiền tệ.
+
+✓  Cập nhật tên và thu nhập hàng tháng lưu thành công vào DB.
+
+✓  Upload ảnh đại diện (JPEG/PNG, tối đa 2MB) và hiển thị ngay sau khi lưu.
+
+✓  Thu nhập hàng tháng là input số, dùng làm context cho AI Chatbot và Budget suggestions.
+
+✓  Thông báo toast 'Cập nhật thành công' sau khi lưu.
+Suggested Subtasks
+• SUB: Design profile screen UI
+
+• SUB: Build GET & PATCH /users/profile API endpoints
+
+• SUB: Implement avatar upload with Multer (local storage)
+
+• SUB: Connect monthly income field to AI context system
+
+• SUB: Write integration test for profile update
+
+
+EPIC: E-02 – Transaction Management (Quản lý giao dịch)
+Feature: F-TXN · 5 User Stories · Priority: P0–P1
+
+[SMM-TXN-01] [TXN] Add Transaction Manually
+Type
+Story
+Priority
+P0
+Epic
+E-02 – Transaction Management
+User Story
+Là người dùng, tôi muốn thêm giao dịch thu/chi thủ công (số tiền, danh mục, ngày, ghi chú, ảnh hoá đơn) để ghi nhép tài chính.
+Acceptance Criteria
+✓  Form thêm giao dịch gồm: Số tiền, Loại (Thu/Chi/Tiết kiệm), Danh mục, Ngày, Ghi chú (tuỳ chọn), Ảnh hoá đơn (tuỳ chọn).
+
+✓  Số tiền phải là số dương, hỗ trợ nhập đơn vị k/tr/củ (AI Quick Input xử lý).
+
+✓  AI tự động gợi ý danh mục ngay khi user nhập ghi chú (tích hợp F-AI-CAT).
+
+✓  Lưu giao dịch thành công: hiển thị toast xác nhận, cập nhật dashboard ngay.
+
+✓  Validation: số tiền không được để trống, phải lớn hơn 0.
+
+✓  Ảnh hoá đơn: upload JPEG/PNG tối đa 5MB, lưu vào local storage.
+Suggested Subtasks
+• SUB: Design add transaction screen UI
+
+• SUB: Build POST /transactions API endpoint
+
+• SUB: Implement amount input with Vietnamese shorthand parsing (k/tr)
+
+• SUB: Integrate AI category suggestion on description input
+
+• SUB: Implement receipt image upload (Multer)
+
+• SUB: Update dashboard state after successful save
+
+[SMM-TXN-02] [TXN] View Transaction History
+Type
+Story
+Priority
+P0
+Epic
+E-02 – Transaction Management
+User Story
+Là người dùng, tôi muốn xem danh sách giao dịch theo timeline để nắm bắt lịch sử thu chi.
+Acceptance Criteria
+✓  Danh sách giao dịch hiển thị theo nhóm ngày (hôm nay, hôm qua, theo ngày cũ hơn).
+
+✓  Mỗi item hiển thị: danh mục icon, tên mô tả, số tiền (màu đỏ/xanh tương ứng Chi/Thu), ngày giờ.
+
+✓  Hỗ trợ infinite scroll hoặc phân trang (20 item/trang).
+
+✓  API trả về đúng dữ liệu của user đang đăng nhập.
+
+✓  Màn hình tải trong <1 giây với dữ liệu seed (< 500 giao dịch).
+Suggested Subtasks
+• SUB: Design transaction list screen UI with grouping by date
+
+• SUB: Build GET /transactions API with pagination
+
+• SUB: Implement infinite scroll in React Native FlatList
+
+• SUB: Design transaction item component (icon, amount color coding)
+
+[SMM-TXN-03] [TXN] Filter & Search Transactions
+Type
+Story
+Priority
+P0
+Epic
+E-02 – Transaction Management
+User Story
+Là người dùng, tôi muốn lọc và tìm kiếm giao dịch theo ngày, danh mục, khoảng tiền, từ khoá để tra cứu nhanh.
+Acceptance Criteria
+✓  Filter theo: khoảng ngày (từ/đến), danh mục (multi-select), khoảng tiền (min/max), loại giao dịch.
+
+✓  Tìm kiếm full-text theo mô tả giao dịch, kết quả cập nhật realtime khi gõ.
+
+✓  Filter và search có thể kết hợp đồng thời.
+
+✓  Nút 'Xoá bộ lọc' reset về trạng thái mặc định.
+
+✓  Hiển thị số lượng kết quả tìm được.
+Suggested Subtasks
+• SUB: Design filter panel UI (bottom sheet or drawer)
+
+• SUB: Build GET /transactions?filters query params on backend
+
+• SUB: Implement full-text search (PostgreSQL ILIKE or SQLite LIKE)
+
+• SUB: Build multi-select category filter component
+
+• SUB: Implement date range picker component
+
+[SMM-TXN-04] [TXN] Edit & Delete Transaction
+Type
+Story
+Priority
+P0
+Epic
+E-02 – Transaction Management
+User Story
+Là người dùng, tôi muốn chỉnh sửa và xoá giao dịch đã nhập để sửa sai sót.
+Acceptance Criteria
+✓  Từ danh sách, tap vào giao dịch mở màn hình chi tiết với nút Chỉnh sửa và Xoá.
+
+✓  Chỉnh sửa: pre-fill form với dữ liệu cũ, lưu thành công cập nhật ngay trong danh sách.
+
+✓  Xoá: hiển thị dialog xác nhận trước khi xoá thực sự.
+
+✓  Sau khi xoá, giao dịch biến mất khỏi danh sách và số liệu dashboard cập nhật.
+
+✓  Chỉ user sở hữu giao dịch mới được phép chỉnh sửa/xoá (backend validate).
+Suggested Subtasks
+• SUB: Design transaction detail & edit screen
+
+• SUB: Build PATCH /transactions/:id API endpoint
+
+• SUB: Build DELETE /transactions/:id API endpoint
+
+• SUB: Implement confirmation dialog for delete action
+
+• SUB: Implement optimistic UI update on edit/delete
+
+[SMM-TXN-05] [TXN] Import Transactions from CSV
+Type
+Story
+Priority
+P1
+Epic
+E-02 – Transaction Management
+User Story
+Là người dùng, tôi muốn import giao dịch hàng loạt từ file CSV để nhập nhanh dữ liệu mẫu.
+Acceptance Criteria
+✓  Hỗ trợ upload file CSV đúng định dạng: date,amount,type,category,description,note.
+
+✓  Hiển thị preview danh sách giao dịch sẽ được import trước khi xác nhận.
+
+✓  Sau import thành công, hiển thị tóm tắt: số giao dịch đã nhập, số lỗi (nếu có).
+
+✓  Hàng lỗi (sai định dạng, thiếu trường) được highlight và báo cụ thể.
+
+✓  Giới hạn file: UTF-8, tối đa 500 hàng/lần import.
+Suggested Subtasks
+• SUB: Design CSV import UI (upload + preview screen)
+
+• SUB: Build POST /transactions/import API (parse CSV with papaparse)
+
+• SUB: Implement row validation and error highlighting
+
+• SUB: Create seed CSV sample file for Lab demo
+
+• SUB: Write unit test for CSV parser
+
+
+EPIC: E-03 – AI Quick Input – Natural Language Entry (Nhập chi tiêu bằng ngôn ngữ tự nhiên)
+Feature: F-AI-INPUT · 4 User Stories · Priority: P0
+
+[SMM-QI-01] [AI-QI] Natural Language Transaction Input
+Type
+Story
+Priority
+P0
+Epic
+E-03 – AI Quick Input
+User Story
+Là người dùng, tôi muốn nhập chi tiêu bằng câu tự nhiên (vd: '40k dầu ăn, 35k bún bò') để ghi nhép nhanh không cần điền form.
+Acceptance Criteria
+✓  Ô Quick Input xuất hiện ngay trên màn hình Home.
+
+✓  AI xử lý và trả về kết quả JSON trong <5 giây.
+
+✓  AI nhận diện đúng số tiền với đơn vị: k=nghìn, tr/củ=triệu.
+
+✓  AI tự động gán danh mục dựa trên tên mặt hàng (độ chính xác >75%).
+
+✓  AI tự động gán ngày: mặc định hôm nay, nhận diện từ khoá sáng/tối/hôm qua/thứ X.
+
+✓  Nếu AI không hiểu, trả về thông báo lỗi thân thiện kèm gợi ý định dạng đúng.
+
+✓  Giới hạn tối đa 10 giao dịch trên một lần nhập.
+Suggested Subtasks
+• SUB: Design Quick Input component on Home screen
+
+• SUB: Engineer LLM prompt for JSON-structured transaction extraction
+
+• SUB: Build POST /ai/quick-input API endpoint
+
+• SUB: Implement Vietnamese shorthand parser (k/tr/củ)
+
+• SUB: Implement time keyword recognition (sáng/tối/hôm qua)
+
+• SUB: Add loading skeleton animation (~2s)
+
+[SMM-QI-02] [AI-QI] Transaction Preview Before Save
+Type
+Story
+Priority
+P0
+Epic
+E-03 – AI Quick Input
+User Story
+Là người dùng, tôi muốn xem preview danh sách giao dịch AI phân tích được trước khi xác nhận lưu.
+Acceptance Criteria
+✓  Màn hình preview hiển thị đầy đủ danh sách giao dịch AI phân tích: số tiền, mô tả, danh mục, ngày.
+
+✓  Có nút 'Xác nhận tất cả' để lưu toàn bộ và nút 'Huỷ' để bỏ qua.
+
+✓  Sau xác nhận: lưu tất cả giao dịch, hiển thị toast thành công, cập nhật dashboard.
+
+✓  Hiển thị số lượng giao dịch sẽ được tạo trong tiêu đề preview.
+Suggested Subtasks
+• SUB: Design transaction preview screen/modal UI
+
+• SUB: Implement bulk save API (POST /transactions/bulk)
+
+• SUB: Implement Confirm All and Cancel actions
+
+• SUB: Trigger dashboard data refresh after successful bulk save
+
+[SMM-QI-03] [AI-QI] Edit Transaction in Preview
+Type
+Story
+Priority
+P0
+Epic
+E-03 – AI Quick Input
+User Story
+Là người dùng, tôi muốn chỉnh sửa từng giao dịch trong màn hình preview trước khi lưu để đảm bảo chính xác.
+Acceptance Criteria
+✓  Mỗi giao dịch trong preview có nút chỉnh sửa inline.
+
+✓  Chỉnh sửa được: số tiền, danh mục, ngày, mô tả.
+
+✓  Thay đổi phản ánh ngay trong preview mà không cần reload.
+
+✓  Có thể xoá từng giao dịch khỏi preview trước khi lưu.
+Suggested Subtasks
+• SUB: Implement inline edit for each preview item
+
+• SUB: Build editable fields: amount, category picker, date picker
+
+• SUB: Implement delete single item from preview list
+
+• SUB: Sync edited state to bulk save payload
+
+[SMM-QI-04] [AI-QI] Multi-Transaction Single Input
+Type
+Story
+Priority
+P0
+Epic
+E-03 – AI Quick Input
+User Story
+Là người dùng, tôi muốn nhập nhiều giao dịch cùng lúc trong một câu để tiết kiệm thời gian.
+Acceptance Criteria
+✓  AI phân tích một câu chứa nhiều giao dịch, trả về mảng JSON đúng với từng giao dịch.
+
+✓  Mỗi giao dịch được tách biệt rõ ràng trong preview.
+
+✓  Hỗ trợ phân tách bằng dấu phẩy, và, xuống dòng.
+
+✓  Tối đa 10 giao dịch trong một lần nhập; nếu vượt, thông báo rõ giới hạn.
+Suggested Subtasks
+• SUB: Update LLM prompt to handle comma/conjunction-separated entries
+
+• SUB: Test with edge cases: same category multiple items, mixed currencies
+
+• SUB: Implement 10-transaction limit validation with user-friendly error
+
+
+EPIC: E-04 – Financial Dashboard & Reports (Dashboard & Báo cáo tài chính)
+Feature: F-DASH · 4 User Stories · Priority: P0–P2
+
+[SMM-DASH-01] [DASH] Monthly Financial Overview
+Type
+Story
+Priority
+P0
+Epic
+E-04 – Financial Dashboard & Reports
+User Story
+Là người dùng, tôi muốn xem tổng quan tài chính tháng hiện tại (tổng thu, chi, số dư, biểu đồ phân bổ) để nắm bắt tình hình ngay khi mở app.
+Acceptance Criteria
+✓  Dashboard hiển thị: Tổng thu, Tổng chi, Số dư tháng hiện tại.
+
+✓  Biểu đồ tròn (pie chart) phân bổ chi tiêu theo danh mục.
+
+✓  Top 5 danh mục chi tiêu nhiều nhất, hiển thị số tiền và %.
+
+✓  Dữ liệu cập nhật ngay khi có giao dịch mới được thêm vào.
+
+✓  Tải dashboard trong <3 giây trên môi trường Lab.
+
+✓  Hiển thị trạng thái loading khi đang fetch dữ liệu.
+Suggested Subtasks
+• SUB: Design dashboard screen layout (Home screen)
+
+• SUB: Build GET /dashboard/summary API endpoint
+
+• SUB: Implement pie chart with Victory Native / react-native-gifted-charts
+
+• SUB: Build top 5 categories list component
+
+• SUB: Implement data refresh on transaction create/update/delete
+
+[SMM-DASH-02] [DASH] 6-Month Spending Trend Chart
+Type
+Story
+Priority
+P0
+Epic
+E-04 – Financial Dashboard & Reports
+User Story
+Là người dùng, tôi muốn xem biểu đồ xu hướng chi tiêu 6 tháng và top 5 danh mục để phân tích thói quen tài chính.
+Acceptance Criteria
+✓  Biểu đồ đường (line chart) hiển thị tổng chi tiêu theo tháng trong 6 tháng gần nhất.
+
+✓  Có thể chuyển đổi giữa xem theo tháng / tuần.
+
+✓  Trục X: tháng (vd: T11, T12, T1...), trục Y: số tiền (định dạng k/tr).
+
+✓  Tap vào điểm trên biểu đồ hiển thị tooltip với số liệu chi tiết.
+Suggested Subtasks
+• SUB: Build GET /dashboard/trend?months=6 API endpoint
+
+• SUB: Implement line chart component with tooltip
+
+• SUB: Implement week/month toggle for chart period
+
+• SUB: Format Y-axis values in Vietnamese (k/tr/tỷ)
+
+[SMM-DASH-03] [DASH] Month-over-Month Comparison
+Type
+Story
+Priority
+P1
+Epic
+E-04 – Financial Dashboard & Reports
+User Story
+Là người dùng, tôi muốn so sánh chi tiêu tháng này với tháng trước để thấy rõ sự thay đổi.
+Acceptance Criteria
+✓  Biểu đồ cột (bar chart) so sánh tổng chi/thu tháng này vs tháng trước.
+
+✓  Highlight rõ ràng: tăng (đỏ) hay giảm (xanh) so với tháng trước.
+
+✓  Hiển thị % chênh lệch cho từng danh mục chính.
+
+✓  Có thể chọn bất kỳ 2 tháng bất kỳ để so sánh.
+Suggested Subtasks
+• SUB: Build GET /dashboard/compare?m1=&m2= API
+
+• SUB: Implement grouped bar chart component
+
+• SUB: Design month selector UI for custom comparison
+
+• SUB: Add percentage change calculation and colour coding
+
+[SMM-DASH-04] [DASH] Export Monthly Report to PDF
+Type
+Story
+Priority
+P2
+Epic
+E-04 – Financial Dashboard & Reports
+User Story
+Là người dùng, tôi muốn xuất báo cáo tháng ra file PDF để lưu trữ và chia sẻ.
+Acceptance Criteria
+✓  Nút 'Xuất PDF' trên màn hình Dashboard.
+
+✓  PDF bao gồm: tổng thu/chi/số dư, biểu đồ phân bổ danh mục, danh sách giao dịch trong tháng.
+
+✓  File PDF được lưu vào bộ nhớ thiết bị hoặc hiển thị tùy chọn chia sẻ.
+
+✓  Layout PDF đơn giản, rõ ràng, có logo/tên app.
+
+✓  Tạo PDF trong <10 giây.
+Suggested Subtasks
+• SUB: Research PDF generation library compatible with React Native (react-native-print or expo-print)
+
+• SUB: Build report HTML template for PDF rendering
+
+• SUB: Build GET /reports/monthly?month= API endpoint
+
+• SUB: Implement share sheet for saving/sharing PDF
+
+
+EPIC: E-05 – Budget Management (Quản lý ngân sách)
+Feature: F-BUDGET · 4 User Stories · Priority: P0–P1
+
+[SMM-BUD-01] [BUD] Set Monthly Budget per Category
+Type
+Story
+Priority
+P0
+Epic
+E-05 – Budget Management
+User Story
+Là người dùng, tôi muốn thiết lập ngân sách cho từng danh mục chi tiêu hàng tháng để kiểm soát tài chính.
+Acceptance Criteria
+✓  Màn hình Budget hiển thị danh sách tất cả danh mục với ô nhập ngân sách.
+
+✓  Nhập số tiền ngân sách cho từng danh mục và lưu thành công.
+
+✓  Ngân sách được áp dụng từ đầu tháng hiện tại.
+
+✓  Có thể để trống (không thiết lập ngân sách) cho danh mục không cần theo dõi.
+
+✓  Tổng ngân sách tháng hiển thị ở cuối màn hình.
+Suggested Subtasks
+• SUB: Design budget setting screen UI
+
+• SUB: Build POST/PATCH /budgets API endpoint
+
+• SUB: Implement category list with inline amount input
+
+• SUB: Calculate and display total monthly budget
+
+[SMM-BUD-02] [BUD] Real-time Budget Progress Tracking
+Type
+Story
+Priority
+P0
+Epic
+E-05 – Budget Management
+User Story
+Là người dùng, tôi muốn theo dõi % sử dụng ngân sách theo thời gian thực để biết mình còn bao nhiêu.
+Acceptance Criteria
+✓  Mỗi danh mục có progress bar trực quan hiển thị % đã dùng / tổng ngân sách.
+
+✓  Hiển thị số tiền đã chi, số tiền còn lại, tổng ngân sách.
+
+✓  Progress bar đổi màu: xanh (<80%), vàng (80-99%), đỏ (>=100%).
+
+✓  Cập nhật ngay khi có giao dịch mới trong danh mục đó.
+
+✓  Các danh mục chưa có ngân sách hiển thị riêng phía dưới.
+Suggested Subtasks
+• SUB: Build GET /budgets/progress API (join budget + transactions)
+
+• SUB: Design budget progress card component with colored progress bar
+
+• SUB: Implement real-time update trigger when transaction added
+
+• SUB: Separate 'no budget set' categories in UI
+
+[SMM-BUD-03] [BUD] Budget Alert Notifications (In-App)
+Type
+Story
+Priority
+P0
+Epic
+E-05 – Budget Management
+User Story
+Là người dùng, tôi muốn nhận cảnh báo trong app khi đạt 80% và 100% ngân sách của một danh mục.
+Acceptance Criteria
+✓  Khi chi tiêu đạt 80% ngân sách danh mục: hiển thị banner cảnh báo vàng trong app.
+
+✓  Khi chi tiêu đạt 100%: hiển thị banner cảnh báo đỏ 'Đã vượt ngân sách'.
+
+✓  Cảnh báo hiển thị ngay khi user mở màn hình Budget hoặc Dashboard.
+
+✓  Cảnh báo có thể dismiss (ẩn) cho đến lần mở app tiếp theo.
+
+✓  Không cần push notification (Lab constraint).
+Suggested Subtasks
+• SUB: Implement budget threshold check logic (80%/100%)
+
+• SUB: Design in-app alert banner component (warning/danger states)
+
+• SUB: Trigger alert check after each new transaction saved
+
+• SUB: Implement dismiss functionality with session-based storage
+
+[SMM-BUD-04] [BUD] AI-Suggested Budget Amounts
+Type
+Story
+Priority
+P1
+Epic
+E-05 – Budget Management
+User Story
+Là người dùng, tôi muốn AI gợi ý mức ngân sách phù hợp dựa trên lịch sử chi tiêu 3 tháng của tôi.
+Acceptance Criteria
+✓  Nút 'Gợi ý từ AI' trên màn hình Budget.
+
+✓  AI phân tích lịch sử 3 tháng gần nhất và gợi ý mức ngân sách cho từng danh mục.
+
+✓  Mỗi gợi ý có giải thích ngắn gọn (vd: 'Trung bình 3 tháng bạn chi 2tr cho ăn uống').
+
+✓  User có thể chấp nhận gợi ý (auto-fill) hoặc bỏ qua từng danh mục.
+
+✓  Response AI trong <5 giây.
+Suggested Subtasks
+• SUB: Aggregate 3-month spending data per category for AI context
+
+• SUB: Engineer LLM prompt for budget suggestion with explanation
+
+• SUB: Build POST /ai/budget-suggest API
+
+• SUB: Design accept/reject UI for each AI suggestion
+
+
+EPIC: E-06 – AI Features – Auto-Categorization, Chatbot & Smart Insights (Tính năng AI – Phân loại, Chatbot & Insights)
+Feature: F-AI-CAT / F-AI-CHAT / F-AI-INSIGHT · 6 User Stories · Priority: P0–P1
+
+[SMM-AI-01] [AI] Auto-Categorization Suggestion
+Type
+Story
+Priority
+P0
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn AI tự động gợi ý danh mục khi tôi nhập mô tả giao dịch để tiết kiệm thao tác phân loại.
+Acceptance Criteria
+✓  AI gợi ý top 3 danh mục cùng % độ tin cậy trong <3 giây sau khi user nhập mô tả.
+
+✓  Danh mục gợi ý số 1 được pre-select mặc định.
+
+✓  Hỗ trợ cả tiếng Việt và tiếng Anh trong mô tả.
+
+✓  Độ chính xác >75% trên tập test mẫu 50 giao dịch Lab.
+
+✓  Nếu AI không chắc (<50% confidence), hiển thị 'Không chắc – chọn thủ công'.
+Suggested Subtasks
+• SUB: Engineer classification prompt with 10-category taxonomy
+
+• SUB: Build POST /ai/categorize API endpoint
+
+• SUB: Design top-3 suggestion UI with confidence badges
+
+• SUB: Implement pre-select highest confidence category
+
+• SUB: Create test dataset (50 sample transactions) for accuracy validation
+
+[SMM-AI-02] [AI] User Feedback Loop for Categorization
+Type
+Story
+Priority
+P0
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn xác nhận hoặc chọn danh mục khác từ top 3 gợi ý của AI để đảm bảo phân loại đúng.
+Acceptance Criteria
+✓  User có thể tap để chọn bất kỳ danh mục nào trong top 3 gợi ý.
+
+✓  User có thể chọn 'Danh mục khác' để mở picker đầy đủ.
+
+✓  Lựa chọn của user được lưu làm feedback (transaction_category_override) để cải thiện AI.
+
+✓  Danh mục đã chọn hiển thị rõ ràng trên form giao dịch.
+Suggested Subtasks
+• SUB: Implement category override UI (tap to select from top 3)
+
+• SUB: Build full category picker modal/bottom sheet
+
+• SUB: Log user overrides to feedback table in DB
+
+• SUB: Analyse override patterns for prompt improvement (Lab report)
+
+[SMM-AI-03] [AI] Financial Chatbot – Personal Finance Advisor
+Type
+Story
+Priority
+P1
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn chat với AI về tình hình tài chính của mình bằng tiếng Việt để nhận tư vấn cá nhân hoá.
+Acceptance Criteria
+✓  Màn hình Chat riêng với AI, truy cập từ tab bar hoặc floating button.
+
+✓  AI trả lời dựa trên dữ liệu tài chính thực của user (tổng thu, chi, top danh mục).
+
+✓  Hỗ trợ câu hỏi tự nhiên tiếng Việt: 'Tháng này tôi chi nhiều nhất vào đâu?', 'Tôi có thể tiết kiệm thêm không?'
+
+✓  Lịch sử hội thoại duy trì trong phiên làm việc (không lưu giữa các session).
+
+✓  AI response trong <5 giây.
+
+✓  Hiển thị typing indicator khi AI đang xử lý.
+Suggested Subtasks
+• SUB: Design chat screen UI (bubble chat style)
+
+• SUB: Engineer system prompt with user financial context injection
+
+• SUB: Build POST /ai/chat API with conversation history
+
+• SUB: Aggregate user financial summary for AI context (last 30 days)
+
+• SUB: Implement typing indicator animation
+
+• SUB: Implement session-based conversation history (in-memory)
+
+[SMM-AI-04] [AI] Weekly Spending Insight Report
+Type
+Story
+Priority
+P1
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn nhận insight hàng tuần về các khoản chi bất thường so với trung bình của tôi.
+Acceptance Criteria
+✓  Card 'Weekly Insight' hiển thị trên Dashboard hoặc màn hình Insights riêng.
+
+✓  AI tạo top 3 nhận xét hữu ích về tuần qua (chi bất thường, so sánh trung bình).
+
+✓  Mỗi insight có action gợi ý cụ thể (vd: 'Giảm café 20% tiết kiệm 400k').
+
+✓  User có thể refresh insight thủ công.
+
+✓  Insight hiển thị ngày tạo (vd: 'Cập nhật: hôm nay lúc 8:00').
+Suggested Subtasks
+• SUB: Build GET /ai/insights/weekly API
+
+• SUB: Aggregate weekly vs monthly average spending per category
+
+• SUB: Engineer insight generation prompt (anomaly detection style)
+
+• SUB: Design insight card UI with refresh button
+
+[SMM-AI-05] [AI] Recurring Expense Detection & Optimization
+Type
+Story
+Priority
+P1
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn AI phát hiện các khoản chi định kỳ (subscription) và gợi ý cắt giảm cụ thể để tiết kiệm hơn.
+Acceptance Criteria
+✓  AI phát hiện các khoản chi lặp lại (cùng số tiền / mô tả xuất hiện ≥2 lần/tháng).
+
+✓  Hiển thị danh sách subscription/chi phí định kỳ phát hiện được.
+
+✓  Với mỗi khoản, AI gợi ý hành động: giữ nguyên / cắt giảm / huỷ bỏ, có lý do.
+
+✓  Tổng tiết kiệm tiềm năng nếu thực hiện tất cả gợi ý.
+Suggested Subtasks
+• SUB: Implement recurring transaction detection algorithm (frequency analysis)
+
+• SUB: Build GET /ai/insights/recurring API
+
+• SUB: Engineer LLM prompt for optimization suggestions per recurring item
+
+• SUB: Design recurring expense list UI with AI suggestions
+
+[SMM-AI-06] [AI] Financial Health Score
+Type
+Story
+Priority
+P1
+Epic
+E-06 – AI Features
+User Story
+Là người dùng, tôi muốn xem 'Điểm sức khoẻ tài chính' (Financial Health Score) của mình để đánh giá tổng thể tình hình.
+Acceptance Criteria
+✓  Score hiển thị dưới dạng số 0-100 và nhãn (Yếu / Trung bình / Tốt / Xuất sắc).
+
+✓  Score được tính dựa trên: tỉ lệ tiết kiệm, số danh mục vượt ngân sách, mức độ đều đặn ghi chép.
+
+✓  Giải thích ngắn gọn lý do điểm số (3 yếu tố chính).
+
+✓  Gợi ý 2-3 hành động để cải thiện điểm.
+
+✓  Score refresh khi user nhấn nút hoặc khi load trang.
+Suggested Subtasks
+• SUB: Define scoring formula (savings rate, budget adherence, logging consistency)
+
+• SUB: Build GET /ai/health-score API
+
+• SUB: Design score display UI (circular gauge or progress indicator)
+
+• SUB: Generate improvement suggestions via LLM
+
+
+EPIC: E-07 – Financial Goal Tracking (Quản lý mục tiêu tài chính)
+Feature: F-GOAL · 3 User Stories · Priority: P1
+
+[SMM-GOAL-01] [GOAL] Create & Manage Financial Goals
+Type
+Story
+Priority
+P1
+Epic
+E-07 – Financial Goal Tracking
+User Story
+Là người dùng, tôi muốn tạo mục tiêu tài chính (tên, số tiền, deadline) và liên kết khoản tiết kiệm vào đó để có định hướng rõ ràng.
+Acceptance Criteria
+✓  Form tạo mục tiêu: Tên mục tiêu, Số tiền cần đạt, Deadline, Mức độ ưu tiên (Cao/Trung bình/Thấp).
+
+✓  Tối đa 5 mục tiêu đồng thời trong Lab.
+
+✓  Có thể liên kết giao dịch loại 'Tiết kiệm' vào một mục tiêu cụ thể.
+
+✓  Chỉnh sửa và xoá mục tiêu: xác nhận trước khi xoá.
+
+✓  Danh sách mục tiêu sắp xếp theo ưu tiên / deadline gần nhất.
+Suggested Subtasks
+• SUB: Design goal creation & list screen UI
+
+• SUB: Build POST/PATCH/DELETE /goals API endpoints
+
+• SUB: Implement goal-transaction linking (goal_id on transaction)
+
+• SUB: Implement 5-goal limit validation
+
+• SUB: Build goal list with sorting options
+
+[SMM-GOAL-02] [GOAL] Visual Goal Progress Tracking
+Type
+Story
+Priority
+P1
+Epic
+E-07 – Financial Goal Tracking
+User Story
+Là người dùng, tôi muốn xem thanh tiến độ trực quan cho từng mục tiêu để biết mình đang ở đâu trên hành trình.
+Acceptance Criteria
+✓  Mỗi mục tiêu hiển thị: progress bar, số tiền đã tích luỹ / tổng cần đạt, % hoàn thành.
+
+✓  Progress bar đổi màu theo % (xanh, vàng khi gần deadline).
+
+✓  Hiển thị số ngày còn lại đến deadline.
+
+✓  Khi đạt 100%: animation chúc mừng và đánh dấu mục tiêu hoàn thành.
+Suggested Subtasks
+• SUB: Build GET /goals/:id/progress API
+
+• SUB: Design goal detail card with animated progress bar
+
+• SUB: Implement deadline countdown logic
+
+• SUB: Design completion celebration animation (Lottie or CSS)
+
+[SMM-GOAL-03] [GOAL] AI Goal Achievement Prediction
+Type
+Story
+Priority
+P1
+Epic
+E-07 – Financial Goal Tracking
+User Story
+Là người dùng, tôi muốn AI ước tính 'còn X tháng nữa đạt mục tiêu' dựa trên tốc độ tiết kiệm hiện tại và gợi ý điều chỉnh nếu cần.
+Acceptance Criteria
+✓  AI tính toán dựa trên trung bình tiết kiệm 3 tháng gần nhất và số tiền còn thiếu.
+
+✓  Hiển thị: 'Với tốc độ hiện tại, bạn sẽ đạt mục tiêu sau X tháng (tháng Y/YYYY)'.
+
+✓  Nếu dự kiến trễ hơn deadline: cảnh báo đỏ + gợi ý cần tiết kiệm thêm bao nhiêu/tháng.
+
+✓  Gợi ý cụ thể: 'Cần tiết kiệm thêm 500k/tháng để đúng hạn – cắt giảm từ danh mục Giải trí'.
+Suggested Subtasks
+• SUB: Implement savings velocity calculation (3-month average)
+
+• SUB: Build GET /goals/:id/prediction API
+
+• SUB: Engineer LLM prompt for contextual adjustment suggestions
+
+• SUB: Design prediction display card with deadline warning state
+

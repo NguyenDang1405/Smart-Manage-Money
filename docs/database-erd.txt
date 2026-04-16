@@ -1,0 +1,102 @@
+// Smart Money Manager — ERD v1.0
+// BRD-SMM-2026-001
+
+Table users {
+  id         uuid      [pk, default: `gen_random_uuid()`]
+  email      varchar   [unique, not null]
+  password_hash varchar [not null]
+  full_name  varchar
+  avatar_url varchar
+  monthly_income decimal(15,0)
+  currency   varchar(10) [default: 'VND']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+}
+
+Table categories {
+  id         int       [pk, increment]
+  name       varchar   [not null]
+  name_vi    varchar
+  icon       varchar
+  color      varchar(7)
+  is_system  boolean   [default: true]
+  user_id    uuid      [ref: > users.id, null]  // null = system category
+  created_at timestamp [default: `now()`]
+}
+
+Table transactions {
+  id                    uuid    [pk, default: `gen_random_uuid()`]
+  user_id               uuid    [ref: > users.id, not null]
+  category_id           int     [ref: > categories.id]
+  goal_id               uuid    [ref: > goals.id, null]
+  type                  varchar [not null, note: 'income | expense | saving']
+  amount                decimal(15,0) [not null]
+  description           varchar
+  note                  text
+  transaction_date      date    [not null]
+  receipt_url           varchar
+  source                varchar [default: 'manual', note: 'manual | ai_quick | csv_import']
+  ai_suggested_category int     [ref: > categories.id, null]
+  ai_confidence         decimal(5,2)
+  ai_overridden         boolean [default: false]
+  created_at            timestamp [default: `now()`]
+  updated_at            timestamp
+}
+
+Table budgets {
+  id          uuid    [pk, default: `gen_random_uuid()`]
+  user_id     uuid    [ref: > users.id, not null]
+  category_id int     [ref: > categories.id, not null]
+  amount      decimal(15,0) [not null]
+  month       int     [not null, note: '1–12']
+  year        int     [not null]
+  created_at  timestamp [default: `now()`]
+  updated_at  timestamp
+
+  indexes {
+    (user_id, category_id, month, year) [unique]
+  }
+}
+
+Table goals {
+  id             uuid    [pk, default: `gen_random_uuid()`]
+  user_id        uuid    [ref: > users.id, not null]
+  name           varchar [not null]
+  target_amount  decimal(15,0) [not null]
+  current_amount decimal(15,0) [default: 0]
+  deadline       date    [not null]
+  priority       varchar [default: 'medium', note: 'high | medium | low']
+  status         varchar [default: 'active', note: 'active | completed | cancelled']
+  created_at     timestamp [default: `now()`]
+  updated_at     timestamp
+}
+
+Table ai_category_feedback {
+  id                  uuid [pk, default: `gen_random_uuid()`]
+  transaction_id      uuid [ref: - transactions.id, not null]
+  user_id             uuid [ref: > users.id, not null]
+  suggested_category_id int [ref: > categories.id]
+  chosen_category_id  int  [ref: > categories.id]
+  confidence          decimal(5,2)
+  created_at          timestamp [default: `now()`]
+}
+
+Table chat_sessions {
+  id         uuid   [pk, default: `gen_random_uuid()`]
+  user_id    uuid   [ref: > users.id, not null]
+  messages   jsonb  [note: 'in-memory conversation history per session']
+  started_at timestamp [default: `now()`]
+  ended_at   timestamp
+}
+
+// ─── Relationships ───────────────────────────
+// users → transactions (1:N)
+// users → budgets (1:N)
+// users → goals (1:N)
+// users → categories (1:N custom categories)
+// users → ai_category_feedback (1:N)
+// users → chat_sessions (1:N)
+// categories → transactions (1:N)
+// categories → budgets (1:N)
+// goals → transactions (1:N, nullable)
+// transactions → ai_category_feedback (1:1)
