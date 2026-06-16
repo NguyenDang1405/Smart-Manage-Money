@@ -1,160 +1,232 @@
+"""
+Qwen2.5 Supervised Fine-Tuning (SFT) Script with QLoRA
+=======================================================
+Fine-tunes Qwen2.5 on the Smart Money Manager financial dataset.
+
+Requirements (GPU environment recommended):
+    pip install torch transformers datasets peft trl accelerate bitsandbytes sentencepiece
+
+Usage:
+    # Set your Hugging Face token first (do NOT hardcode it!)
+    # Windows PowerShell:
+    #   $env:HF_TOKEN = "your_hugging_face_token_here"
+    # Linux / macOS / Google Colab:
+    #   export HF_TOKEN="your_hugging_face_token_here"
+
+    python scripts/finetune-qwen.py
+"""
+
 import os
 import sys
-from datasets import load_dataset
+
+# ─── Dependency Check ─────────────────────────────────────────────────────────
+REQUIRED_PACKAGES = ["datasets", "torch", "transformers", "peft", "trl", "accelerate"]
+MISSING = []
+for pkg in REQUIRED_PACKAGES:
+    try:
+        __import__(pkg)
+    except ImportError:
+        MISSING.append(pkg)
+
+if MISSING:
+    print("=" * 60)
+    print("ERROR: Missing required Python packages:")
+    for pkg in MISSING:
+        print(f"  - {pkg}")
+    print()
+    print("Install them with:")
+    print("  pip install torch transformers datasets peft trl accelerate bitsandbytes sentencepiece")
+    print("=" * 60)
+    sys.exit(1)
+
+# ─── Imports ──────────────────────────────────────────────────────────────────
+# pyrefly: ignore [missing-import]
+from datasets import load_dataset           
 import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     TrainingArguments,
-    BitsAndBytesConfig
+    BitsAndBytesConfig,
 )
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from trl import SFTTrainer
+from peft import LoraConfig, prepare_model_for_kbit_training
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
+
+# ─── Main Training Function ───────────────────────────────────────────────────
 def train():
-    print("=== Qwen2.5 Supervised Fine-Tuning Script ===")
-    
-    # 1. Hugging Face Access & Hub Setup
-    # Do NOT hardcode the token! It will be loaded from the HF_TOKEN environment variable.
+    print("=" * 60)
+    print("=== Qwen2.5 Supervised Fine-Tuning (SFT + QLoRA) ===")
+    print("=" * 60)
+
+    # 1. Load HF Token from environment variable (NEVER hardcode it!)
     hf_token = os.environ.get("HF_TOKEN")
     if not hf_token:
-        print("Error: HF_TOKEN environment variable not set. Please export/set HF_TOKEN before running.")
+        print("\nERROR: HF_TOKEN environment variable is not set.")
+        print("Set it before running:")
+        print("  Windows: $env:HF_TOKEN = 'your_token'")
+        print("  Linux:   export HF_TOKEN='your_token'")
         sys.exit(1)
-        
-    # Set model config
-    # We use Qwen2.5-1.5B-Instruct as a lightweight base model suitable for standard GPUs (e.g. Colab / local RTX).
-    # To scale up to the 72B model, change this to "Qwen/Qwen2.5-72B-Instruct" on a multi-GPU cluster.
-    base_model_id = "Qwen/Qwen2.5-1.5B-Instruct"
-    new_model_name = "Qwen2.5-SMM-Financial-Adapter"
-    output_dir = "./qwen-smm-adapter"
-    
-    dataset_path = os.path.join(os.path.dirname(__file__), "../finetuning_dataset.jsonl")
+
+    # 2. Configuration
+    # Lightweight model for local/Colab GPUs. Change to Qwen2.5-72B-Instruct
+    # if you have access to a multi-GPU cluster (A100 80GB x 4+ recommended).
+    BASE_MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
+    HUB_REPO_ID   = "NguyenDang1405/Qwen2.5-SMM-Financial-Adapter"
+    OUTPUT_DIR     = "./qwen-smm-adapter"
+    MAX_SEQ_LEN    = 1024
+
+    # 3. Locate dataset
+    script_dir   = os.path.dirname(os.path.abspath(__file__))
+    dataset_path = os.path.normpath(os.path.join(script_dir, "../finetuning_dataset.jsonl"))
+
     if not os.path.exists(dataset_path):
-        print(f"Error: Dataset not found at {dataset_path}. Please run the data preparation script first.")
+        print(f"\nERROR: Dataset not found at:\n  {dataset_path}")
+        print("Run the preparation script first:")
+        print("  npx tsx apps/api/scripts/prepare-finetuning-data.ts")
         sys.exit(1)
-        
-    print(f"Loading base model: {base_model_id}")
-    print(f"Loading dataset from: {dataset_path}")
-    
-    # 2. Load Dataset
+
+    print(f"\nBase model : {BASE_MODEL_ID}")
+    print(f"Dataset    : {dataset_path}")
+    print(f"Output dir : {OUTPUT_DIR}")
+
+    # 4. Load Dataset
     dataset = load_dataset("json", data_files=dataset_path, split="train")
-    print(f"Loaded {len(dataset)} examples for training.")
-    
-    # 3. Load Tokenizer
+    print(f"Loaded     : {len(dataset)} training examples\n")
+
+    # 5. Load Tokenizer
+    print("Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(
-        base_model_id, 
-        token=hf_token, 
-        trust_remote_code=True
+        BASE_MODEL_ID,
+        token=hf_token,
+        trust_remote_code=True,
     )
-    tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    
-    # 4. BitsAndBytes Quantization Config for QLoRA (4-bit)
+
+    # 6. QLoRA / BitsAndBytes 4-bit quantization config
+    use_gpu = torch.cuda.is_available()
+    print(f"CUDA available: {use_gpu}")
+
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True
-    )
-    
-    # Load base model in 4-bit
-    try:
-        model = AutoModelForCausalLM.from_pretrained(
-            base_model_id,
-            quantization_config=bnb_config,
-            device_map="auto",
-            token=hf_token,
-            trust_remote_code=True
-        )
-    except Exception as e:
-        print(f"Error loading model: {e}")
-        print("Fine-tuning simulation: Loading model requires GPU and proper libraries (bitsandbytes, transformers, accelerate).")
-        print("If running in a CPU-only or dependency-light environment, SFTTrainer initialization might fail.")
-        print("Continuing with dummy verification step...")
-        # Since this is run on the local machine which might lack CUDA, we catch the error
-        # and print detailed instructions for running in Google Colab / GPU environments.
-        print("\n=== HOW TO RUN THIS SFT IN A GPU ENVIRONMENT ===")
-        print("1. Install dependencies:")
-        print("   pip install torch transformers datasets peft trl accelerate bitsandbytes sentencepiece")
-        print("2. Set Hugging Face Token environment variable:")
-        print("   export HF_TOKEN=\"your_hugging_face_token_here\"")
-        print("3. Run this script:")
-        print("   python scripts/finetune-qwen.py")
-        return
+        bnb_4bit_use_double_quant=True,
+    ) if use_gpu else None
 
-    # Prepare model for 4-bit quantization training
-    model = prepare_model_for_kbit_training(model)
+    # 7. Load Model
+    print("Loading base model (this may take a few minutes)...")
+    try:
+        model_kwargs = dict(
+            token=hf_token,
+            trust_remote_code=True,
+            device_map="auto" if use_gpu else "cpu",
+        )
+        if bnb_config:
+            model_kwargs["quantization_config"] = bnb_config
+
+        model = AutoModelForCausalLM.from_pretrained(BASE_MODEL_ID, **model_kwargs)
+    except Exception as e:
+        print(f"\nERROR loading model: {e}")
+        print("\nCommon fixes:")
+        print("  1. Ensure bitsandbytes is installed:  pip install bitsandbytes")
+        print("  2. Ensure CUDA is available (GPU required for 4-bit quantization)")
+        print("  3. Run on Google Colab (free T4 GPU) or a cloud VM with GPU")
+        sys.exit(1)
+
+    if use_gpu:
+        model = prepare_model_for_kbit_training(model)
     model.config.use_cache = False
-    
-    # 5. PEFT / LoRA Config
+
+    # 8. LoRA Config
     peft_config = LoraConfig(
         r=16,
         lora_alpha=32,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+        ],
         lora_dropout=0.05,
         bias="none",
-        task_type="CAUSAL_LM"
+        task_type="CAUSAL_LM",
     )
-    
-    # 6. Training Arguments
+
+    # 9. Format dataset using chat template
+    def format_sample(example):
+        """Apply Qwen2.5 chat template to a single messages list."""
+        return tokenizer.apply_chat_template(
+            example["messages"],
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+
+    formatted_dataset = dataset.map(
+        lambda ex: {"text": format_sample(ex)},
+        remove_columns=dataset.column_names,
+    )
+
+    # 10. Data Collator (packs on the assistant response boundary)
+    response_template = "<|im_start|>assistant\n"
+    collator = DataCollatorForCompletionOnlyLM(
+        response_template=response_template,
+        tokenizer=tokenizer,
+    )
+
+    # 11. Training Arguments
     training_args = TrainingArguments(
-        output_dir=output_dir,
+        output_dir=OUTPUT_DIR,
         num_train_epochs=3,
         per_device_train_batch_size=2,
         gradient_accumulation_steps=4,
-        optim="paged_adamw_32bit",
+        optim="paged_adamw_32bit" if use_gpu else "adamw_torch",
         save_steps=25,
         logging_steps=5,
         learning_rate=2e-4,
         weight_decay=0.01,
-        fp16=True,
+        fp16=use_gpu,                       # Only enable fp16 on GPU
+        bf16=False,
         max_grad_norm=0.3,
         warmup_ratio=0.03,
         group_by_length=True,
         lr_scheduler_type="cosine",
-        report_to="none"
+        report_to="none",
     )
-    
-    # Formatting function for ChatML style messages
-    def formatting_prompts_func(example):
-        texts = []
-        for messages in example["messages"]:
-            # Format using tokenizer chat template
-            text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-            texts.append(text)
-        return texts
 
-    # 7. Initialize SFTTrainer
+    # 12. Initialize SFTTrainer
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset,
+        train_dataset=formatted_dataset,
         peft_config=peft_config,
-        max_seq_length=1024,
-        tokenizer=tokenizer,
+        max_seq_length=MAX_SEQ_LEN,
+        processing_class=tokenizer,         # 'tokenizer' arg is deprecated in trl>=0.9
         args=training_args,
-        formatting_func=formatting_prompts_func,
+        data_collator=collator,
+        dataset_text_field="text",
     )
-    
-    # 8. Run Training
-    print("Starting fine-tuning...")
+
+    # 13. Run Training
+    print("\nStarting fine-tuning...\n")
     trainer.train()
-    
-    # Save adapter model locally
-    print(f"Saving adapter model locally to {output_dir}")
-    trainer.model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    
-    # 9. Push Adapter to Hugging Face Hub
-    # Replace with user's repository target name on their namespace if desired
-    repo_id = f"NguyenDang1405/{new_model_name}"
-    print(f"Pushing trained adapter to Hugging Face Hub: {repo_id}")
+
+    # 14. Save adapter locally
+    print(f"\nSaving adapter to '{OUTPUT_DIR}'...")
+    trainer.model.save_pretrained(OUTPUT_DIR)
+    tokenizer.save_pretrained(OUTPUT_DIR)
+    print("Adapter saved locally.")
+
+    # 15. Push to Hugging Face Hub
+    print(f"\nPushing adapter to Hugging Face Hub: {HUB_REPO_ID}")
     try:
-        trainer.model.push_to_hub(repo_id, token=hf_token, safe_serialization=True)
-        tokenizer.push_to_hub(repo_id, token=hf_token)
-        print("Success! Adapter pushed to Hugging Face Hub.")
+        trainer.model.push_to_hub(HUB_REPO_ID, token=hf_token, safe_serialization=True)
+        tokenizer.push_to_hub(HUB_REPO_ID, token=hf_token)
+        print(f"Successfully pushed to https://huggingface.co/{HUB_REPO_ID}")
     except Exception as e:
-        print(f"Failed to push to Hugging Face Hub: {e}")
-        print("Make sure your token has WRITE access and the repository exists or can be created.")
+        print(f"Warning: Could not push to Hub — {e}")
+        print("Adapter is still saved locally. Push manually with:")
+        print(f"  huggingface-cli upload {HUB_REPO_ID} {OUTPUT_DIR}")
+
 
 if __name__ == "__main__":
     train()
