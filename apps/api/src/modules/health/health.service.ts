@@ -10,3 +10,5 @@ export type { HealthStatus };
 export { getHealthStatus };
 
 // Refactored: fix(core): catch database connection timeouts in health check
+
+// Refactored: fix(core): catch database connection timeouts in health check
