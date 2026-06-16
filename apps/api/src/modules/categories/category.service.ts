@@ -15,3 +15,5 @@ export const CategoryService = {
 };
 
 // Refactored: feat(categories): add default financial categories on user registration
+
+// Refactored: feat(categories): add default financial categories on user registration
