@@ -261,3 +261,5 @@ export default function InsightsScreen() {
 }
 
 // Refactored: style(reports): adjust grid lines and legends in insight charts
+
+// Refactored: style(reports): adjust grid lines and legends in insight charts
