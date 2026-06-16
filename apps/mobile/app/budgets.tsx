@@ -668,3 +668,5 @@ export default function BudgetsScreen() {
 }
 
 // Refactored: style(budgets): update budget progress bar colors for alert states
+
+// Refactored: style(budgets): update budget progress bar colors for alert states
