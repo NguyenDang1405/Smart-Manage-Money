@@ -1,7 +1,8 @@
 import { prisma } from "../../shared/prisma";
 import { AppError } from "../../shared/app-error";
 
-// ─── Hugging Face Qwen2.5-72B-Instruct Client ────────────────────────────────
+// ─── Multi-Provider AI Client ─────────────────────────────────────────────────
+// Priority: Groq (free, fast) → HuggingFace → fallback response
 
 function isApiKeyValid(key: string | undefined): boolean {
   if (!key) return false;
@@ -10,33 +11,89 @@ function isApiKeyValid(key: string | undefined): boolean {
   return true;
 }
 
-async function callQwen(
+async function callAI(
   messages: { role: string; content: string }[],
   temperature = 0.7
 ): Promise<string> {
-  const token = process.env.HF_API_KEY || "";
-  if (!token) throw new Error("INVALID_API_KEY");
+  const groqKey   = process.env.GROQ_API_KEY  || "";
+  const hfKey     = process.env.HF_API_KEY    || "";
 
-  const url =
-    "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct/v1/chat/completions";
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ messages, temperature, max_tokens: 1500 }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`HuggingFace API Error: ${response.status} - ${errText}`);
+  // ── 1. Groq (free tier, OpenAI-compatible, no VPN needed) ─────────────────
+  if (isApiKeyValid(groqKey)) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "qwen-qwq-32b",        // Qwen 32B on Groq (free)
+          messages,
+          temperature,
+          max_tokens: 1500,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const text: string = data.choices[0]?.message?.content || "";
+        // QwQ model includes <think>...</think> tags — strip them
+        return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+      }
+      const errText = await res.text();
+      console.error(`[AI] Groq error ${res.status}:`, errText);
+    } catch (e: any) {
+      clearTimeout(timeout);
+      console.error("[AI] Groq request failed:", e.message);
+    }
   }
 
-  const data = (await response.json()) as any;
-  return data.choices[0]?.message?.content || "";
+  // ── 2. HuggingFace Inference (requires token with Inference Providers perm) ─
+  if (isApiKeyValid(hfKey)) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const res = await fetch("https://router.huggingface.co/hf-inference/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${hfKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "Qwen/Qwen2.5-72B-Instruct",
+          messages,
+          temperature,
+          max_tokens: 1500,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        return data.choices[0]?.message?.content || "";
+      }
+      const errText = await res.text();
+      console.error(`[AI] HuggingFace error ${res.status}:`, errText);
+    } catch (e: any) {
+      clearTimeout(timeout);
+      console.error("[AI] HuggingFace request failed:", e.message);
+    }
+  }
+
+  // ── No provider available ──────────────────────────────────────────────────
+  if (!isApiKeyValid(groqKey) && !isApiKeyValid(hfKey)) {
+    console.warn("[AI] No valid API key found. Set GROQ_API_KEY (free at console.groq.com) or HF_API_KEY in .env");
+  }
+  throw new Error("INVALID_API_KEY");
 }
+
+// Alias kept for internal calls
+const callQwen = callAI;
+
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
