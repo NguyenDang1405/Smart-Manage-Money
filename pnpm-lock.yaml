@@ -36,6 +36,9 @@ importers:
       '@google/genai':
         specifier: ^2.4.0
         version: 2.4.0
+      '@huggingface/inference':
+        specifier: ^4.13.19
+        version: 4.13.19
       '@prisma/adapter-pg':
         specifier: ^7.8.0
         version: 7.8.0
@@ -1255,6 +1258,17 @@ packages:
     resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
     peerDependencies:
       react-hook-form: ^7.55.0
+
+  '@huggingface/inference@4.13.19':
+    resolution: {integrity: sha512-F2Jv7kCAGsdrUCCHMcyQev3ax9XVUdeYYng9bDPffRnnph55g9n0IzeK4ILUr5zRjifCK5ZWIu7VfIn9nQWcIw==}
+    engines: {node: '>=18'}
+
+  '@huggingface/jinja@0.5.9':
+    resolution: {integrity: sha512-uWTG+l3VJRsl7EXxYizuL3P+cCPoc3cRqbWWRcQN0FhejRfbdq0RNhCmbY/YDtnTcz9icdLYuLDjsnz4d8JMuw==}
+    engines: {node: '>=18'}
+
+  '@huggingface/tasks@0.21.12':
+    resolution: {integrity: sha512-umj2NY5/BUI8Unkx8By8GPEW/mcRUDU/01R3qA5DjQj+8kqLeIb3kZAKiNjDWY9qKqaFQSZf9tfTipOkml8Pcw==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -7609,6 +7623,15 @@ snapshots:
     dependencies:
       '@standard-schema/utils': 0.3.0
       react-hook-form: 7.76.0(react@19.2.0)
+
+  '@huggingface/inference@4.13.19':
+    dependencies:
+      '@huggingface/jinja': 0.5.9
+      '@huggingface/tasks': 0.21.12
+
+  '@huggingface/jinja@0.5.9': {}
+
+  '@huggingface/tasks@0.21.12': {}
 
   '@humanfs/core@0.19.1': {}
 
