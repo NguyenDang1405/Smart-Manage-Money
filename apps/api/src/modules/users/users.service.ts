@@ -199,3 +199,5 @@ export const UsersService = {
 };
 
 // Refactored: fix(users): resolve profile picture upload resizing issue
+
+// Refactored: fix(users): resolve profile picture upload resizing issue

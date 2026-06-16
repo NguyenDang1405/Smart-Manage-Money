@@ -646,3 +646,5 @@ export default function GoalsScreen() {
 }
 
 // Refactored: chore(goals): add tests for savings goals progress calculations
+
+// Refactored: chore(goals): add tests for savings goals progress calculations

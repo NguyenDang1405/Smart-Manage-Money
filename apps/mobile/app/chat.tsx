@@ -496,3 +496,5 @@ const styles = StyleSheet.create({
 });
 
 // Refactored: fix(ai): handle API timeout gracefully on chat screen
+
+// Refactored: fix(ai): handle API timeout gracefully on chat screen

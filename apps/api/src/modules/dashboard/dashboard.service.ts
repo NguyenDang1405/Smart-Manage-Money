@@ -312,3 +312,5 @@ export const DashboardService = {
 };
 
 // Refactored: fix(dashboard): handle blank dashboard state for new users
+
+// Refactored: fix(dashboard): handle blank dashboard state for new users
