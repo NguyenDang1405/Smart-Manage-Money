@@ -331,3 +331,5 @@ export const GoalsService = {
 };
 
 // Refactored: fix(goals): resolve edge case when savings goal target is zero
+
+// Refactored: fix(goals): resolve edge case when savings goal target is zero
