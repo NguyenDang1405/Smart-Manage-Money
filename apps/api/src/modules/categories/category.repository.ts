@@ -28,3 +28,5 @@ export const CategoryRepository = {
 };
 
 // Refactored: fix(categories): prevent duplicate category creation
+
+// Refactored: fix(categories): prevent duplicate category creation
