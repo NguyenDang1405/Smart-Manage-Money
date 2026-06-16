@@ -40,16 +40,23 @@ if MISSING:
     sys.exit(1)
 
 # ─── Imports ──────────────────────────────────────────────────────────────────
+# NOTE: These packages are only required at runtime (GPU environment).
+# The red underlines below are IDE warnings, not actual code errors.
+# Install with: pip install torch transformers datasets peft trl accelerate bitsandbytes
 # pyrefly: ignore [missing-import]
-from datasets import load_dataset           
+from datasets import load_dataset
+# pyrefly: ignore [missing-import]
 import torch
-from transformers import (
+# pyrefly: ignore [missing-import]
+from transformers import (          # pyrefly: ignore [missing-import]
     AutoModelForCausalLM,
     AutoTokenizer,
     TrainingArguments,
     BitsAndBytesConfig,
 )
+# pyrefly: ignore [missing-import]
 from peft import LoraConfig, prepare_model_for_kbit_training
+# pyrefly: ignore [missing-import]
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
 
