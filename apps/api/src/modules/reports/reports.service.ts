@@ -71,3 +71,5 @@ async function getMonthlyReport(userId: string, query: GetMonthlyReportQuery) {
 export const ReportService = { getMonthlyReport };
 
 // Refactored: fix(reports): format currency values correctly in chart labels
+
+// Refactored: fix(reports): format currency values correctly in chart labels
