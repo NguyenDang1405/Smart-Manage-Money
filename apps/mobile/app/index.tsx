@@ -774,7 +774,7 @@ export default function Index() {
             backgroundColor: '#0D9488',
             paddingHorizontal: 20,
             paddingTop: 16,
-            paddingBottom: 72,
+            paddingBottom: 60,
             borderBottomLeftRadius: 32,
             borderBottomRightRadius: 32,
             shadowColor: '#0D9488',
@@ -868,7 +868,7 @@ export default function Index() {
               backgroundColor: 'white',
               borderRadius: 20,
               padding: 16,
-              paddingBottom: 22,
+              paddingBottom: 16,
               flexDirection: 'row',
               shadowColor: '#0D9488',
               shadowOffset: { width: 0, height: 6 },
@@ -877,7 +877,6 @@ export default function Index() {
               elevation: 6,
               borderWidth: 1,
               borderColor: '#f1f5f9',
-              position: 'relative',
             }}
           >
             {/* Income */}
@@ -920,68 +919,62 @@ export default function Index() {
                 {displayExpense.toLocaleString('vi-VN')}
               </Text>
             </View>
+          </View>
 
-            {/* ═══ ABSOLUTE AI CHAT BUBBLE OVERLAPPING THE BOTTOM EDGE ═══ */}
-            <View style={{
-              position: 'absolute',
-              bottom: -18,
-              left: 0,
-              right: 0,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 40,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* Robot Avatar */}
-                <View style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: 'white',
-                  borderWidth: 1.5,
-                  borderColor: '#E2E8F0',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 42,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 3,
-                  elevation: 2,
-                }}>
-                  <Bot size={16} color="#4F46E5" />
-                </View>
+          {/* ═══ AI CHAT BUBBLE - below income/expense card ═══ */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 10,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {/* Robot Avatar */}
+              <View style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: 'white',
+                borderWidth: 1.5,
+                borderColor: '#E2E8F0',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 3,
+                elevation: 2,
+              }}>
+                <Bot size={16} color="#4F46E5" />
+              </View>
 
-                {/* Speech Bubble */}
-                <View style={{
-                  backgroundColor: '#EDE9FE',
-                  borderRadius: 20,
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  paddingLeft: 18,
-                  marginLeft: -10,
-                  borderWidth: 1,
-                  borderColor: '#E0DBFC',
-                  zIndex: 41,
-                  shadowColor: '#4F46E5',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 4,
-                  elevation: 1,
-                }}>
-                  <Text style={{ fontSize: 11, color: '#4F46E5', fontFamily: 'Manrope-Medium' }}>
-                    <Text style={{ fontWeight: '700', fontFamily: 'Manrope-Bold' }}>Trợ lý: </Text>
-                    {aiAssistantTip}
-                  </Text>
-                </View>
+              {/* Speech Bubble */}
+              <View style={{
+                backgroundColor: '#EDE9FE',
+                borderRadius: 20,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                paddingLeft: 18,
+                marginLeft: -10,
+                borderWidth: 1,
+                borderColor: '#E0DBFC',
+                shadowColor: '#4F46E5',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 4,
+                elevation: 1,
+              }}>
+                <Text style={{ fontSize: 11, color: '#4F46E5', fontFamily: 'Manrope-Medium' }}>
+                  <Text style={{ fontWeight: '700', fontFamily: 'Manrope-Bold' }}>Trợ lý: </Text>
+                  {aiAssistantTip}
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
         {/* ═══ CONTENT AREA ═══ */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
           {/* AI Quick Input Bar */}
           <QuickInputBar />
 
