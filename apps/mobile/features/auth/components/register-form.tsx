@@ -1,28 +1,25 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Text } from "@/components/ui/text";
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { View } from "react-native";
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { z } from "zod";
 
 const registerSchema = z
   .object({
-    fullName: z
-      .string()
-      .min(2, "Tên phải có ít nhất 2 ký tự")
-      .min(1, "Tên là bắt buộc"),
+    fullName: z.string().min(2, "Tên phải có ít nhất 2 ký tự"),
     email: z.string().email("Email không hợp lệ").min(1, "Email là bắt buộc"),
-    password: z
-      .string()
-      .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
-      .min(1, "Mật khẩu là bắt buộc"),
+    password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
     confirmPassword: z.string().min(1, "Xác nhận mật khẩu là bắt buộc"),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((d) => d.password === d.confirmPassword, {
     message: "Mật khẩu không khớp",
     path: ["confirmPassword"],
   });
@@ -38,46 +35,40 @@ export function RegisterForm({
   onSubmit,
   isLoading = false,
 }: RegisterFormProps) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const {
     control,
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
+    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
   });
 
   const onSubmitHandler = useCallback(
     async (data: RegisterFormData) => {
-      const { confirmPassword, ...submitData } = data;
-      await onSubmit(submitData);
+      const { confirmPassword, ...rest } = data;
+      await onSubmit(rest);
     },
-    [onSubmit],
+    [onSubmit]
   );
 
   return (
-    <View className="gap-4">
-      {/* Full Name Input */}
-      <View className="gap-2">
-        <Label nativeID="fullName">Họ và tên</Label>
+    <View style={styles.root}>
+      {/* ── Họ và tên ── */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Họ và tên</Text>
         <Controller
           control={control}
           name="fullName"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View className="relative">
-              <View className="absolute left-3 top-3 z-10">
-                <Ionicons name="person-outline" size={20} color="#94a3b8" />
-              </View>
+            <View style={[styles.inputBox, !!errors.fullName && styles.inputBoxErr]}>
+              <Ionicons name="person-outline" size={18} color="#94a3b8" style={styles.icon} />
               <Input
+                style={styles.textInput}
                 placeholder="Nguyễn Văn A"
-                className="pl-10 h-12"
+                placeholderTextColor="#94a3b8"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -87,27 +78,22 @@ export function RegisterForm({
             </View>
           )}
         />
-        {errors.fullName && (
-          <Text className="text-xs text-destructive">
-            {errors.fullName.message}
-          </Text>
-        )}
+        {!!errors.fullName && <Text style={styles.errMsg}>{errors.fullName.message}</Text>}
       </View>
 
-      {/* Email Input */}
-      <View className="gap-2">
-        <Label nativeID="email">Email</Label>
+      {/* ── Email ── */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Email</Text>
         <Controller
           control={control}
           name="email"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View className="relative">
-              <View className="absolute left-3 top-3 z-10">
-                <Ionicons name="mail-outline" size={20} color="#94a3b8" />
-              </View>
+            <View style={[styles.inputBox, !!errors.email && styles.inputBoxErr]}>
+              <Ionicons name="mail-outline" size={18} color="#94a3b8" style={styles.icon} />
               <Input
+                style={styles.textInput}
                 placeholder="example@email.com"
-                className="pl-10 h-12"
+                placeholderTextColor="#94a3b8"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -119,32 +105,23 @@ export function RegisterForm({
             </View>
           )}
         />
-        {errors.email && (
-          <Text className="text-xs text-destructive">
-            {errors.email.message}
-          </Text>
-        )}
+        {!!errors.email && <Text style={styles.errMsg}>{errors.email.message}</Text>}
       </View>
 
-      {/* Password Input */}
-      <View className="gap-2">
-        <Label nativeID="password">Mật khẩu</Label>
+      {/* ── Mật khẩu ── */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Mật khẩu</Text>
         <Controller
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View className="relative">
-              <View className="absolute left-3 top-3 z-10">
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#94a3b8"
-                />
-              </View>
+            <View style={[styles.inputBox, !!errors.password && styles.inputBoxErr]}>
+              <Ionicons name="lock-closed-outline" size={18} color="#94a3b8" style={styles.icon} />
               <Input
-                secureTextEntry={!showPassword}
-                placeholder="........"
-                className="pl-10 pr-10 h-12"
+                style={styles.textInput}
+                placeholder="ít nhất 8 ký tự"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry={!showPwd}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -152,45 +129,36 @@ export function RegisterForm({
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <View
-                className="absolute right-3 top-3"
-                onTouchEnd={() => setShowPassword(!showPassword)}
+              <TouchableOpacity
+                onPress={() => setShowPwd(!showPwd)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
-                  size={20}
-                  color="#64748b"
+                  name={showPwd ? "eye-outline" : "eye-off-outline"}
+                  size={18}
+                  color="#94a3b8"
                 />
-              </View>
+              </TouchableOpacity>
             </View>
           )}
         />
-        {errors.password && (
-          <Text className="text-xs text-destructive">
-            {errors.password.message}
-          </Text>
-        )}
+        {!!errors.password && <Text style={styles.errMsg}>{errors.password.message}</Text>}
       </View>
 
-      {/* Confirm Password Input */}
-      <View className="gap-2">
-        <Label nativeID="confirmPassword">Xác nhận mật khẩu</Label>
+      {/* ── Xác nhận mật khẩu ── */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Xác nhận mật khẩu</Text>
         <Controller
           control={control}
           name="confirmPassword"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View className="relative">
-              <View className="absolute left-3 top-3 z-10">
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#94a3b8"
-                />
-              </View>
+            <View style={[styles.inputBox, !!errors.confirmPassword && styles.inputBoxErr]}>
+              <Ionicons name="lock-closed-outline" size={18} color="#94a3b8" style={styles.icon} />
               <Input
-                secureTextEntry={!showConfirmPassword}
-                placeholder="........"
-                className="pl-10 pr-10 h-12"
+                style={styles.textInput}
+                placeholder="nhập lại mật khẩu"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry={!showConfirm}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -198,36 +166,101 @@ export function RegisterForm({
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <View
-                className="absolute right-3 top-3"
-                onTouchEnd={() => setShowConfirmPassword(!showConfirmPassword)}
+              <TouchableOpacity
+                onPress={() => setShowConfirm(!showConfirm)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Ionicons
-                  name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
-                  size={20}
-                  color="#64748b"
+                  name={showConfirm ? "eye-outline" : "eye-off-outline"}
+                  size={18}
+                  color="#94a3b8"
                 />
-              </View>
+              </TouchableOpacity>
             </View>
           )}
         />
-        {errors.confirmPassword && (
-          <Text className="text-xs text-destructive">
-            {errors.confirmPassword.message}
-          </Text>
+        {!!errors.confirmPassword && (
+          <Text style={styles.errMsg}>{errors.confirmPassword.message}</Text>
         )}
       </View>
 
-      {/* Submit Button */}
-      <Button
-        className="w-full h-12 rounded-xl shadow-md mt-4"
+      {/* ── Submit ── */}
+      <TouchableOpacity
+        style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
         onPress={handleSubmit(onSubmitHandler)}
         disabled={isLoading}
+        activeOpacity={0.85}
       >
-        <Text className="font-bold">
-          {isLoading ? "Đang đăng ký..." : "Đăng ký"}
-        </Text>
-      </Button>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="white" />
+        ) : (
+          <Text style={styles.submitLabel}>Đăng ký</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { gap: 14 },
+  field: { gap: 6 },
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    fontFamily: "Manrope-SemiBold",
+  },
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 46,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  inputBoxErr: { borderColor: "#ef4444" },
+  icon: { flexShrink: 0 },
+  textInput: {
+    flex: 1,
+    height: "100%",
+    fontSize: 14,
+    color: "#1e293b",
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    fontFamily: "Manrope-Regular",
+    padding: 0,
+  },
+  errMsg: {
+    fontSize: 11,
+    color: "#ef4444",
+    fontFamily: "Manrope-Regular",
+  },
+  submitBtn: {
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "#0D9488",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 6,
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  submitBtnDisabled: {
+    backgroundColor: "#94a3b8",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitLabel: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: "Manrope-Bold",
+    letterSpacing: 0.2,
+  },
+});

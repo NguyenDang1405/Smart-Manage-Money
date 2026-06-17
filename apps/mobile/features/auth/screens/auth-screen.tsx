@@ -1,18 +1,31 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/text";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState, useEffect } from "react";
-import { Image, ScrollView, View, Modal, TextInput, Pressable, Platform } from "react-native";
+import {
+  Image,
+  ScrollView,
+  View,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  KeyboardAvoidingView,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LoginForm } from "../components/login-form";
 import { RegisterForm } from "../components/register-form";
 import { useRouter } from "expo-router";
 import { Alert } from "react-native";
-import { useSignIn, useSignUp, useOAuth } from "@clerk/clerk-expo";
+import { useSignIn, useSignUp, useOAuth, useAuth } from "@clerk/clerk-expo";
 import * as Linking from "expo-linking";
+
+// Web redirect URL for Clerk OAuth (must be HTTP/S, not custom scheme)
+const WEB_OAUTH_REDIRECT = typeof window !== 'undefined'
+  ? `${window.location.origin}/oauth-callback`
+  : 'http://localhost:8081/oauth-callback';
 
 interface LoginFormData {
   email: string;
@@ -25,12 +38,15 @@ interface RegisterFormData {
   password: string;
 }
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 40, 420);
+
 export default function AuthScreen() {
   const router = useRouter();
-  const [tabValue, setTabValue] = useState("login");
+  const [tabValue, setTabValue] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Clerk hooks
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
   const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
@@ -38,73 +54,129 @@ export default function AuthScreen() {
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
 
+  // Auto-redirect nếu đã đăng nhập (ví dụ: session còn hiệu lực)
+  useEffect(() => {
+    if (isAuthLoaded && isSignedIn) {
+      router.replace('/');
+    }
+  }, [isAuthLoaded, isSignedIn, router]);
 
+  // Hiển thị loading khi Clerk chưa sẵn sàng
+  if (!isAuthLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#0D9488" />
+      </View>
+    );
+  }
 
-  // Clerk OAuth Google Sign-In Flow
+  /* ─── OAuth Google ─── */
   const triggerGoogleAuth = useCallback(async () => {
     try {
       setIsLoading(true);
-      const redirectUrl = Linking.createURL('/auth', { scheme: 'mobile' });
+
+      if (Platform.OS === 'web') {
+        // Web: sử dụng authenticateWithRedirect với URL http/https hợp lệ
+        if (!isSignInLoaded) return;
+        await signIn.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: WEB_OAUTH_REDIRECT,
+          redirectUrlComplete: typeof window !== 'undefined'
+            ? window.location.origin + '/'
+            : '/',
+        });
+        // Không cần setIsLoading(false) vì trang sẽ redirect
+        return;
+      }
+
+      // Native (iOS/Android): dùng startOAuthFlow với custom scheme
+      const redirectUrl = Linking.createURL('/oauth-callback', { scheme: 'mobile' });
       const { createdSessionId, setActive } = await startOAuthFlow({ redirectUrl });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         router.replace('/');
       }
     } catch (error: any) {
-      console.error("Google Clerk login error:", error);
+      console.error('Google OAuth error:', error);
+
+      // Xử lý trường hợp đã đăng nhập sẵn
+      const msg = error?.errors?.[0]?.message || error?.message || '';
+      if (
+        msg.toLowerCase().includes('already signed in') ||
+        msg.toLowerCase().includes('single session')
+      ) {
+        // Đã có session → redirect về home luôn
+        router.replace('/');
+        return;
+      }
+
       Alert.alert(
-        "Lỗi liên kết Google",
-        error.message || "Không thể xác thực tài khoản Google của bạn."
+        'Lỗi đăng nhập Google',
+        error.errors?.[0]?.longMessage ||
+        error.errors?.[0]?.message ||
+        error.message ||
+        'Không thể xác thực tài khoản Google. Vui lòng thử lại.'
       );
     } finally {
       setIsLoading(false);
     }
-  }, [startOAuthFlow, router]);
+  }, [isSignInLoaded, signIn, startOAuthFlow, router]);
 
-
-
-  const handleLogin = useCallback(async (data: LoginFormData) => {
-    if (!isSignInLoaded) return;
-    try {
-      setIsLoading(true);
-      const result = await signIn.create({
-        identifier: data.email,
-        password: data.password,
-      });
-      if (result.status === 'complete') {
-        await setSignInActive({ session: result.createdSessionId });
-        router.replace('/');
-      } else {
-        throw new Error("Thông tin đăng nhập không hợp lệ hoặc cần xác minh.");
+  /* ─── Login ─── */
+  const handleLogin = useCallback(
+    async (data: LoginFormData) => {
+      if (!isSignInLoaded) return;
+      try {
+        setIsLoading(true);
+        const result = await signIn.create({
+          identifier: data.email,
+          password: data.password,
+        });
+        if (result.status === "complete") {
+          await setSignInActive({ session: result.createdSessionId });
+          router.replace("/");
+        } else {
+          throw new Error("Thông tin đăng nhập không hợp lệ hoặc cần xác minh.");
+        }
+      } catch (error: any) {
+        Alert.alert(
+          "Lỗi đăng nhập",
+          error.errors?.[0]?.message || error.message || "Vui lòng kiểm tra lại email và mật khẩu."
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error: any) {
-      console.error("Login error:", error);
-      Alert.alert("Lỗi đăng nhập", error.errors?.[0]?.message || error.message || "Vui lòng kiểm tra lại email và mật khẩu.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isSignInLoaded, signIn, setSignInActive, router]);
+    },
+    [isSignInLoaded, signIn, setSignInActive, router]
+  );
 
-  const handleRegister = useCallback(async (data: RegisterFormData) => {
-    if (!isSignUpLoaded) return;
-    try {
-      setIsLoading(true);
-      await signUp.create({
-        emailAddress: data.email,
-        password: data.password,
-        firstName: data.fullName.split(' ')[0] || '',
-        lastName: data.fullName.split(' ').slice(1).join(' ') || '',
-      });
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-      setVerifyingEmail(true);
-    } catch (error: any) {
-      console.error("Register error:", error);
-      Alert.alert("Lỗi đăng ký", error.errors?.[0]?.message || error.message || "Email đã tồn tại hoặc có lỗi xảy ra.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isSignUpLoaded, signUp]);
+  /* ─── Register ─── */
+  const handleRegister = useCallback(
+    async (data: RegisterFormData) => {
+      if (!isSignUpLoaded) return;
+      try {
+        setIsLoading(true);
+        await signUp.create({
+          emailAddress: data.email,
+          password: data.password,
+          firstName: data.fullName.split(" ")[0] || "",
+          lastName: data.fullName.split(" ").slice(1).join(" ") || "",
+        });
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        setVerifyingEmail(true);
+      } catch (error: any) {
+        Alert.alert(
+          "Lỗi đăng ký",
+          error.errors?.[0]?.message || error.message || "Email đã tồn tại hoặc có lỗi xảy ra."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [isSignUpLoaded, signUp]
+  );
 
+  /* ─── Verify Email ─── */
   const handleVerifyEmail = useCallback(async () => {
     if (!isSignUpLoaded) return;
     try {
@@ -112,183 +184,204 @@ export default function AuthScreen() {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: verificationCode,
       });
-      if (completeSignUp.status === 'complete') {
+      if (completeSignUp.status === "complete") {
         await setSignUpActive({ session: completeSignUp.createdSessionId });
         setVerifyingEmail(false);
-        router.replace('/');
+        router.replace("/");
       } else {
         throw new Error("Xác thực không thành công.");
       }
     } catch (error: any) {
-      console.error("Verification error:", error);
-      Alert.alert("Lỗi xác thực", error.errors?.[0]?.message || error.message || "Mã xác thực không hợp lệ.");
+      Alert.alert(
+        "Lỗi xác thực",
+        error.errors?.[0]?.message || error.message || "Mã xác thực không hợp lệ."
+      );
     } finally {
       setIsLoading(false);
     }
   }, [isSignUpLoaded, signUp, setSignUpActive, verificationCode, router]);
 
+  /* ─── RENDER ─── */
   return (
-    <SafeAreaView className="flex-1">
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: "center",
-          padding: 26,
-        }}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View className="items-center mb-8">
-          <View className="w-20 h-20 mb-6 items-center justify-center">
-            <Image
-              source={require("../../../assets/images/smart_money_manager_logo.png")}
-              className="w-20 h-20"
-              resizeMode="contain"
-            />
-          </View>
-          <Text variant="h2" className="border-0">
-            Smart Money Manager
-          </Text>
-          <Text
-            variant="p"
-            className="text-center text-muted-foreground text-sm mt-0"
-          >
-            Quản lý tài chính cá nhân thông minh
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ════════════════════════════════════
+              Unified Card
+              ┌──────────────────────────────────┐
+              │  Dark green header (rounded top) │
+              ├──────────────────────────────────┤
+              │  Tab bar                         │
+              ├──────────────────────────────────┤
+              │  Form content                    │
+              └──────────────────────────────────┘
+          ════════════════════════════════════ */}
+          <View style={[styles.card, { width: CARD_WIDTH }]}>
 
-        <Card className="w-full border-none shadow-sm overflow-hidden p-0">
-          <Tabs value={tabValue} onValueChange={setTabValue} className="w-full">
-            <TabsList className="flex-row h-12 w-full rounded-none border-b border-muted">
-              <TabsTrigger value="login" className="flex-grow h-full">
-                <Text>Đăng nhập</Text>
-              </TabsTrigger>
-              <TabsTrigger value="register" className="flex-grow h-full">
-                <Text>Đăng ký</Text>
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="login">
-              <CardContent className="p-6">
-                <LoginForm onSubmit={handleLogin} isLoading={isLoading} />
-
-                <View className="flex-row items-center mt-8 mb-4">
-                  <Separator className="flex-1" />
-                  <Text className="mx-4 text-xs text-muted-foreground font-medium uppercase">
-                    Hoặc
-                  </Text>
-                  <Separator className="flex-1" />
-                </View>
-
-                <View className="flex-row justify-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="w-14 h-14 rounded-full bg-primary-foreground shadow-sm"
-                    disabled={isLoading}
-                  >
-                    <Ionicons name="logo-facebook" size={34} color="#1877F2" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="w-14 h-14 rounded-full bg-primary-foreground shadow-sm"
-                    disabled={isLoading}
-                    onPress={triggerGoogleAuth}
-                  >
-                    <Ionicons name="logo-google" size={30} color="#EA4335" />
-                  </Button>
-                </View>
-              </CardContent>
-            </TabsContent>
-
-            <TabsContent value="register">
-              <CardContent className="p-6">
-                <RegisterForm onSubmit={handleRegister} isLoading={isLoading} />
-
-                <View className="flex-row items-center mt-8 mb-4">
-                  <Separator className="flex-1" />
-                  <Text className="mx-4 text-xs text-muted-foreground font-medium uppercase">
-                    Hoặc
-                  </Text>
-                  <Separator className="flex-1" />
-                </View>
-
-                <View className="flex-row justify-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="w-14 h-14 rounded-full bg-primary-foreground shadow-sm"
-                    disabled={isLoading}
-                  >
-                    <Ionicons name="logo-facebook" size={34} color="#1877F2" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="w-14 h-14 rounded-full bg-primary-foreground shadow-sm"
-                    disabled={isLoading}
-                    onPress={triggerGoogleAuth}
-                  >
-                    <Ionicons name="logo-google" size={30} color="#EA4335" />
-                  </Button>
-                </View>
-              </CardContent>
-            </TabsContent>
-          </Tabs>
-        </Card>
-
-        <View className="mt-auto px-6 items-center">
-          <Text className="text-xs text-muted-foreground">
-            Phiên bản 2.4.0 • Bảo mật 256-bit AES
-          </Text>
-        </View>
-      </ScrollView>
-
-
-
-      {/* Email Verification Modal */}
-      <Modal
-        visible={verifyingEmail}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setVerifyingEmail(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <View className="bg-background w-full max-w-[360px] rounded-3xl overflow-hidden shadow-2xl border border-muted p-6 gap-4">
-            <View className="items-center mt-2">
-              <Ionicons name="mail-open-outline" size={48} color="#0d9488" className="mb-2" />
-              <Text variant="h3" className="text-center font-bold text-lg">Xác thực Email</Text>
-              <Text className="text-center text-xs text-muted-foreground mt-1">
-                Chúng tôi đã gửi mã xác thực đến địa chỉ email của bạn. Vui lòng nhập mã bên dưới để hoàn tất đăng ký.
+            {/* ── Dark green header ── */}
+            <View style={styles.cardHeader}>
+              {/* Logo circle */}
+              <View style={styles.logoWrap}>
+                <Image
+                  source={require("../../../assets/images/smart_money_manager_logo.png")}
+                  style={styles.logoImg}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.appName}>Smart Money Manager</Text>
+              <Text style={styles.appTagline}>
+                Quản lý tài chính cá nhân thông minh
               </Text>
             </View>
 
-            <View className="gap-1.5 text-center items-center justify-center">
-              <Text className="text-xs font-semibold text-muted-foreground self-start">Mã xác thực</Text>
+            {/* ── Tab switcher ── */}
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={styles.tabBtn}
+                onPress={() => setTabValue("login")}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    tabValue === "login" && styles.tabLabelActive,
+                  ]}
+                >
+                  Đăng nhập
+                </Text>
+                {tabValue === "login" && <View style={styles.tabLine} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.tabBtn}
+                onPress={() => setTabValue("register")}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    tabValue === "register" && styles.tabLabelActive,
+                  ]}
+                >
+                  Đăng ký
+                </Text>
+                {tabValue === "register" && <View style={styles.tabLine} />}
+              </TouchableOpacity>
+            </View>
+
+            {/* Tab bottom border */}
+            <View style={styles.tabBorder} />
+
+            {/* ── Form area ── */}
+            <View style={styles.formArea}>
+              {tabValue === "login" ? (
+                <LoginForm onSubmit={handleLogin} isLoading={isLoading} />
+              ) : (
+                <RegisterForm onSubmit={handleRegister} isLoading={isLoading} />
+              )}
+
+              {/* HOẶC */}
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>HOẶC</Text>
+                <View style={styles.orLine} />
+              </View>
+
+              {/* Social buttons */}
+              <View style={styles.socialRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  disabled={isLoading}
+                  style={styles.socialCircle}
+                >
+                  <View style={[styles.socialCircleInner, { backgroundColor: "#1877F2" }]}>
+                    <Ionicons name="logo-facebook" size={22} color="white" />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  disabled={isLoading}
+                  onPress={triggerGoogleAuth}
+                  style={styles.socialCircle}
+                >
+                  <View style={[styles.socialCircleInner, styles.googleCircle]}>
+                    <Ionicons name="logo-google" size={20} color="#EA4335" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* ── Footer ── */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Phiên bản 2.4.0 • Bảo mật 256-bit AES
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ════ Email Verification Modal ════ */}
+      <Modal
+        visible={verifyingEmail}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVerifyingEmail(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            {/* Icon */}
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="mail-open-outline" size={34} color="#0D9488" />
+            </View>
+
+            <Text style={styles.modalTitle}>Xác thực Email</Text>
+            <Text style={styles.modalDesc}>
+              Chúng tôi đã gửi mã 6 chữ số đến email của bạn. Vui lòng nhập
+              mã bên dưới để hoàn tất đăng ký.
+            </Text>
+
+            <View style={styles.modalInputGroup}>
+              <Text style={styles.modalInputLabel}>Mã xác thực</Text>
               <TextInput
                 value={verificationCode}
                 onChangeText={setVerificationCode}
-                placeholder="123456"
+                placeholder="• • • • • •"
                 keyboardType="number-pad"
-                style={{ height: 48, paddingHorizontal: 12, borderWidth: 1, borderRadius: 12 }}
-                className="w-full border-muted bg-muted/20 text-foreground text-center text-lg font-bold"
-                placeholderTextColor="#94a3b8"
+                maxLength={6}
+                style={styles.otpInput}
+                placeholderTextColor="#cbd5e1"
               />
             </View>
 
-            <View className="flex-row gap-2 mt-2">
-              <Button
-                variant="outline"
-                className="flex-1 h-11 rounded-xl"
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.btnCancel}
                 onPress={() => setVerifyingEmail(false)}
+                activeOpacity={0.8}
               >
-                <Text>Hủy bỏ</Text>
-              </Button>
-              <Button
-                className="flex-1 h-11 rounded-xl"
+                <Text style={styles.btnCancelText}>Hủy bỏ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnConfirm, isLoading && { opacity: 0.7 }]}
                 onPress={handleVerifyEmail}
                 disabled={isLoading}
+                activeOpacity={0.85}
               >
-                <Text className="font-semibold text-primary-foreground">Xác nhận</Text>
-              </Button>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={styles.btnConfirmText}>Xác nhận</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -296,3 +389,283 @@ export default function AuthScreen() {
     </SafeAreaView>
   );
 }
+
+/* ════════════════════════════════════
+   Styles
+════════════════════════════════════ */
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    backgroundColor: "#ffffff",
+  },
+
+  /* ── Card ── */
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    overflow: "hidden",
+    // Shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+    // Border like the screenshot
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  /* ── Card Header (dark green top) ── */
+  cardHeader: {
+    backgroundColor: "#0D5C4A",
+    paddingTop: 32,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  logoWrap: {
+    width: 70,
+    height: 70,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    overflow: "hidden",
+  },
+  logoImg: {
+    width: 58,
+    height: 58,
+  },
+  appName: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "700",
+    fontFamily: "Manrope-Bold",
+    marginBottom: 5,
+    textAlign: "center",
+  },
+  appTagline: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12.5,
+    fontFamily: "Manrope-Regular",
+    textAlign: "center",
+  },
+
+  /* ── Tab Row ── */
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "white",
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    position: "relative",
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#94a3b8",
+    fontFamily: "Manrope-Medium",
+  },
+  tabLabelActive: {
+    color: "#1e293b",
+    fontWeight: "700",
+    fontFamily: "Manrope-Bold",
+  },
+  tabLine: {
+    position: "absolute",
+    bottom: 0,
+    left: "20%",
+    right: "20%",
+    height: 2,
+    backgroundColor: "#0D9488",
+    borderRadius: 2,
+  },
+  tabBorder: {
+    height: 1,
+    backgroundColor: "#e9ecef",
+  },
+
+  /* ── Form Area ── */
+  formArea: {
+    backgroundColor: "white",
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 28,
+  },
+
+  /* ── HOẶC ── */
+  orRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 22,
+    marginBottom: 18,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e2e8f0",
+  },
+  orText: {
+    marginHorizontal: 14,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#94a3b8",
+    letterSpacing: 1.5,
+    fontFamily: "Manrope-Bold",
+  },
+
+  /* ── Social ── */
+  socialRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  socialCircle: {},
+  socialCircleInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  googleCircle: {
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+
+  /* ── Footer ── */
+  footer: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  footerText: {
+    fontSize: 11,
+    color: "#94a3b8",
+    fontFamily: "Manrope-Regular",
+  },
+
+  /* ── Modal ── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalBox: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 26,
+    width: "100%",
+    maxWidth: 360,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 14,
+  },
+  modalIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    backgroundColor: "#f0fdf9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    fontFamily: "Manrope-Bold",
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontSize: 13,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 20,
+    fontFamily: "Manrope-Regular",
+    marginBottom: 20,
+  },
+  modalInputGroup: {
+    width: "100%",
+    gap: 6,
+    marginBottom: 22,
+  },
+  modalInputLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+    fontFamily: "Manrope-SemiBold",
+  },
+  otpInput: {
+    width: "100%",
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    textAlign: "center",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+    backgroundColor: "#f8fafc",
+    letterSpacing: 8,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  btnCancel: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnCancelText: {
+    color: "#475569",
+    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: "Manrope-Bold",
+  },
+  btnConfirm: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#0D9488",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0D9488",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  btnConfirmText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: "Manrope-Bold",
+  },
+});

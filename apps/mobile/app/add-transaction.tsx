@@ -186,18 +186,43 @@ export default function AddTransactionScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F4F7F6]" edges={['top', 'bottom']}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 gap-3">
-        <TouchableOpacity onPress={() => router.back()} className="p-1.5">
-          <ArrowLeft size={22} color="#1e293b" />
-        </TouchableOpacity>
-        <Text className="text-base font-bold text-slate-800">Thêm giao dịch</Text>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F8' }} edges={['top', 'bottom']}>
+      {/* ═══ HERO HEADER ═══ */}
+      <View
+        style={{
+          backgroundColor: transactionType === 'expense' ? '#dc2626' : transactionType === 'income' ? '#0D9488' : '#2563eb',
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 28,
+          borderBottomLeftRadius: 28,
+          borderBottomRightRadius: 28,
+          shadowColor: transactionType === 'expense' ? '#dc2626' : '#0D9488',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.3,
+          shadowRadius: 14,
+          elevation: 8,
+        }}
+      >
+        {/* Top: back + title */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ width: 36, height: 36, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <ArrowLeft size={20} color="white" />
+          </TouchableOpacity>
+          <Text style={{ color: 'white', fontSize: 17, fontWeight: '700', fontFamily: 'Manrope-Bold' }}>Thêm giao dịch</Text>
+        </View>
 
-      {/* Transaction Type Tabs (custom pill style matching mockup) */}
-      <View className="px-4 mb-4">
-        <View className="flex-row bg-white rounded-xl p-1 border border-slate-200">
+        {/* Type Selector */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: 'rgba(0,0,0,0.15)',
+            borderRadius: 14,
+            padding: 3,
+          }}
+        >
           {(['expense', 'income', 'savings'] as const).map((t) => {
             const isActive = transactionType === t;
             const label = t === 'expense' ? 'Chi tiêu' : t === 'income' ? 'Thu nhập' : 'Tiết kiệm';
@@ -205,12 +230,28 @@ export default function AddTransactionScreen() {
               <TouchableOpacity
                 key={t}
                 onPress={() => setTransactionType(t)}
-                className={`flex-1 py-2 rounded-lg items-center ${isActive ? TAB_ACTIVE_COLOR[t] : ''}`}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  borderRadius: 11,
+                  alignItems: 'center',
+                  backgroundColor: isActive ? 'white' : 'transparent',
+                  shadowColor: isActive ? '#000' : 'transparent',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: isActive ? 3 : 0,
+                }}
               >
                 <Text
-                  className={`text-sm font-semibold ${
-                    isActive ? 'text-white' : 'text-slate-500'
-                  }`}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    fontFamily: 'Manrope-Bold',
+                    color: isActive
+                      ? (t === 'expense' ? '#dc2626' : t === 'income' ? '#0D9488' : '#2563eb')
+                      : 'rgba(255,255,255,0.75)',
+                  }}
                 >
                   {label}
                 </Text>

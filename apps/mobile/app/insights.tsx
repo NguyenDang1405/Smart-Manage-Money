@@ -227,7 +227,7 @@ export default function InsightsScreen() {
               </View>
 
               <View className="bg-slate-50 p-4 rounded-2xl flex-row justify-between items-center">
-                <Text className="text-sm font-bold text-slate-700" style={{ fontFamily: 'Manrope-Bold' }}>Tích lũy</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#334155', fontFamily: 'Manrope-Bold' }}>Tích lũy</Text>
                 <Text className="text-lg font-black text-slate-800" style={{ fontFamily: 'HankenGrotesk-Bold' }}>
                   {reportData.netSaving.toLocaleString('vi-VN')} đ
                 </Text>
@@ -259,7 +259,3 @@ export default function InsightsScreen() {
     </SafeAreaView>
   );
 }
-
-// Refactored: style(reports): adjust grid lines and legends in insight charts
-
-// Refactored: style(reports): adjust grid lines and legends in insight charts

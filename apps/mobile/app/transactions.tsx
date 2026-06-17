@@ -538,29 +538,63 @@ export default function TransactionsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F4F7F6]" edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-5 pt-2 pb-3">
-        <View className="flex-row items-center gap-2">
-          <Wallet size={22} color="#1A6B5A" />
-          <Text className="text-xl font-bold text-slate-800">Giao dịch</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F8' }} edges={['top']}>
+      {/* ═══ HEADER ═══ */}
+      <View
+        style={{
+          backgroundColor: '#0D9488',
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 20,
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+          shadowColor: '#0D9488',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.25,
+          shadowRadius: 14,
+          elevation: 8,
+        }}
+      >
+        {/* Title row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ width: 36, height: 36, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}>
+              <Wallet size={20} color="white" />
+            </View>
+            <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', fontFamily: 'Manrope-Bold' }}>Giao dịch</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/import-data')}
+              style={{ width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <FileUp size={18} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsFilterOpen(true)}
+              style={{ width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <SlidersHorizontal size={18} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.push('/import-data')}>
-            <FileUp size={21} color="#64748b" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsFilterOpen(true)}>
-            <SlidersHorizontal size={21} color="#64748b" />
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Search size={21} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* Search */}
-      <View className="px-5 mb-3">
-        <View className="flex-row items-center bg-white rounded-xl px-3 border border-slate-200 h-11">
+        {/* Search bar */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: 'white',
+            borderRadius: 14,
+            paddingHorizontal: 12,
+            height: 44,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 6,
+            elevation: 4,
+          }}
+        >
           <Search size={16} color="#94a3b8" />
           <Input
             value={searchQuery}
@@ -572,12 +606,12 @@ export default function TransactionsScreen() {
         </View>
       </View>
 
-      {/* Tabs */}
+      {/* ═══ FILTER TABS ═══ */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="px-5 mb-3 flex-none"
-        contentContainerStyle={{ gap: 8, alignItems: 'center' }}
+        style={{ flexGrow: 0, marginTop: 14, marginBottom: 6 }}
+        contentContainerStyle={{ paddingHorizontal: 20, gap: 8, alignItems: 'center' }}
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.value;
@@ -585,16 +619,27 @@ export default function TransactionsScreen() {
             <TouchableOpacity
               key={tab.value}
               onPress={() => setActiveTab(tab.value as typeof activeTab)}
-              className={`px-4 py-1.5 rounded-full border ${
-                isActive
-                  ? 'bg-[#1A6B5A] border-[#1A6B5A]'
-                  : 'bg-white border-slate-200'
-              }`}
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 7,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                backgroundColor: isActive ? '#0D9488' : 'white',
+                borderColor: isActive ? '#0D9488' : '#e2e8f0',
+                shadowColor: isActive ? '#0D9488' : 'transparent',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 6,
+                elevation: isActive ? 4 : 0,
+              }}
             >
               <Text
-                className={`text-sm font-semibold ${
-                  isActive ? 'text-white' : 'text-slate-600'
-                }`}
+                style={{
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: isActive ? 'white' : '#64748b',
+                  fontFamily: 'Manrope-SemiBold',
+                }}
               >
                 {tab.label}
               </Text>

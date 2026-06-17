@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, TextInput, TouchableOpacity, ActivityIndicator, Text } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { apiClient, getAuthToken } from '../lib/http';
 
@@ -24,7 +25,6 @@ export default function QuickInputBar() {
       const data = response.data?.data || response.data;
       if (data && data.transactions) {
         setText('');
-        // Navigate to preview screen and pass the parsed transactions
         router.push({
           pathname: '/transaction/ai-preview' as any,
           params: { transactions: JSON.stringify(data.transactions) }
@@ -39,13 +39,47 @@ export default function QuickInputBar() {
   };
 
   return (
-    <View className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 mb-6 flex-row items-center">
-      <View className="bg-indigo-50 w-10 h-10 rounded-xl items-center justify-center mr-3">
-        <MaterialCommunityIcons name="auto-fix" size={20} color="#4f46e5" />
+    <View
+      style={{
+        backgroundColor: 'white',
+        borderRadius: 18,
+        padding: 12,
+        marginBottom: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#6366f1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        elevation: 5,
+        borderWidth: 1.5,
+        borderColor: 'rgba(99,102,241,0.15)',
+      }}
+    >
+      {/* Icon */}
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          backgroundColor: '#ede9fe',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 10,
+        }}
+      >
+        <Sparkles size={18} color="#7c3aed" />
       </View>
+
+      {/* Input */}
       <TextInput
-        className="flex-1 text-slate-800 text-sm font-medium"
-        placeholder="Ghi chép AI (VD: 40k phở, 2 củ xăng...)"
+        style={{
+          flex: 1,
+          fontSize: 14,
+          color: '#1e293b',
+          fontFamily: 'Manrope-Medium',
+        }}
+        placeholder="Ghi nhanh bằng AI (VD: 40k phở, 2 củ xăng...)"
         placeholderTextColor="#94a3b8"
         value={text}
         onChangeText={setText}
@@ -53,17 +87,35 @@ export default function QuickInputBar() {
         returnKeyType="send"
         editable={!loading}
       />
+
+      {/* Submit */}
       {loading ? (
-        <View className="w-10 h-10 items-center justify-center">
-          <ActivityIndicator color="#4f46e5" size="small" />
+        <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#7c3aed" size="small" />
         </View>
       ) : (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleSubmit}
           disabled={!text.trim()}
-          className={`w-10 h-10 rounded-xl items-center justify-center ${text.trim() ? 'bg-indigo-600' : 'bg-slate-100'}`}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            backgroundColor: text.trim() ? '#7c3aed' : '#f1f5f9',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: text.trim() ? '#7c3aed' : 'transparent',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: text.trim() ? 4 : 0,
+          }}
         >
-          <Feather name="arrow-up" size={20} color={text.trim() ? "white" : "#94a3b8"} />
+          <MaterialCommunityIcons
+            name="arrow-up"
+            size={20}
+            color={text.trim() ? 'white' : '#94a3b8'}
+          />
         </TouchableOpacity>
       )}
     </View>
