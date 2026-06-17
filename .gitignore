@@ -42,3 +42,4 @@ yarn.lock
 
 # App specific
 /apps/api/uploads
+.env*.local

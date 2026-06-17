@@ -285,7 +285,7 @@ export default function ProfileScreen() {
     localAvatarOverride 
   } = useTransactions();
   const { user: clerkUser } = useUser();
-  const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
   const [refreshing, setRefreshing] = useState(false);
 
   // Language state (default to Vietnamese)
@@ -302,7 +302,7 @@ export default function ProfileScreen() {
   const [showExportModal, setShowExportModal] = useState(false);
   
   // API settings state
-  const [apiServer, setApiServer] = useState('http://localhost:4000');
+  const [apiServer, setApiServer] = useState(process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
   const [aiModel, setAiModel] = useState('gemini-1.5-flash');
   const [temperature, setTemperature] = useState('0.7');
 

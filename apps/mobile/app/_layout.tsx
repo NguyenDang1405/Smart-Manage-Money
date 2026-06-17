@@ -49,6 +49,9 @@ export default function RootLayout() {
     'Manrope-Regular': 'https://fonts.gstatic.com/s/manrope/v15/xn7gTGY33_wV3t42475yILWv.ttf',
     'Manrope-Medium': 'https://fonts.gstatic.com/s/manrope/v15/xn7gTGY33_wV3t42475yILWv.ttf',
     'Manrope-Bold': 'https://fonts.gstatic.com/s/manrope/v15/xn7gTGY33_wV3t42475yILWv.ttf',
+    'Ionicons': 'https://unpkg.com/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf',
+    'Feather': 'https://unpkg.com/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf',
+    'MaterialCommunityIcons': 'https://unpkg.com/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf',
   });
 
   return (

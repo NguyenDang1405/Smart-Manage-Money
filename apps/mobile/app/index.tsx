@@ -31,7 +31,7 @@ export default function Index() {
     localAvatarOverride
   } = useTransactions();
   const { user: clerkUser } = useUser();
-  const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
   const gotoAddTransaction = () => {
     router.push("/add-transaction");

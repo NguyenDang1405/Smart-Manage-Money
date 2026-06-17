@@ -13,7 +13,7 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { logout, setUserProfile, setLocalAvatarOverride } = useTransactions();
-  const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
   
   const [profile, setProfile] = useState({
     fullName: '',
