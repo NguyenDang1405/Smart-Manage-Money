@@ -926,49 +926,43 @@ export default function Index() {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
-            marginTop: 10,
+            marginTop: 8,
           }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {/* Robot Avatar */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#F5F3FF',
+              borderRadius: 20,
+              paddingVertical: 5,
+              paddingHorizontal: 10,
+              borderWidth: 1,
+              borderColor: '#E0DBFC',
+              gap: 6,
+              maxWidth: '92%',
+            }}>
+              {/* Robot Avatar - compact */}
               <View style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: 'white',
-                borderWidth: 1.5,
-                borderColor: '#E2E8F0',
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: '#4F46E5',
                 alignItems: 'center',
                 justifyContent: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 3,
-                elevation: 2,
+                flexShrink: 0,
               }}>
-                <Bot size={16} color="#4F46E5" />
+                <Bot size={12} color="white" />
               </View>
 
-              {/* Speech Bubble */}
-              <View style={{
-                backgroundColor: '#EDE9FE',
-                borderRadius: 20,
-                paddingHorizontal: 14,
-                paddingVertical: 7,
-                paddingLeft: 18,
-                marginLeft: -10,
-                borderWidth: 1,
-                borderColor: '#E0DBFC',
-                shadowColor: '#4F46E5',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
-                elevation: 1,
+              {/* Tip text */}
+              <Text numberOfLines={1} style={{
+                fontSize: 10,
+                color: '#4F46E5',
+                fontFamily: 'Manrope-Medium',
+                flex: 1,
               }}>
-                <Text style={{ fontSize: 11, color: '#4F46E5', fontFamily: 'Manrope-Medium' }}>
-                  <Text style={{ fontWeight: '700', fontFamily: 'Manrope-Bold' }}>Trợ lý: </Text>
-                  {aiAssistantTip}
-                </Text>
-              </View>
+                <Text style={{ fontWeight: '800', fontFamily: 'Manrope-Bold' }}>AI: </Text>
+                {aiAssistantTip}
+              </Text>
             </View>
           </View>
         </View>
