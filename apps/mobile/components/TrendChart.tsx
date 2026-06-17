@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Text } from "@/components/ui/text";
 import { LineChart } from "react-native-gifted-charts";
@@ -10,7 +10,7 @@ export default function TrendChart() {
   const [trendData, setTrendData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { isLoaded, isSignedIn } = useAuth();
-  const hasFetched = useRef(false);
+
 
   const fetchTrendData = async (selectedPeriod: "week" | "month") => {
     // Don't fetch if Clerk is not ready or user not signed in
