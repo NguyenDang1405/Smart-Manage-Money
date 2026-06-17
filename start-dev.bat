@@ -6,8 +6,13 @@ echo      Smart Money Manager - Dev Auto Launcher
 echo ====================================================
 echo.
 
-echo [+] Dang don dep cac tien trinh ngrok bi treo cu...
+echo [+] Dang don dep cac tien trinh cu de giai phong Port va Subdomain...
 taskkill /f /im ngrok.exe >nul 2>&1
+taskkill /f /fi "windowtitle eq Ngrok API Tunnel*" >nul 2>&1
+taskkill /f /fi "windowtitle eq Localtunnel Web*" >nul 2>&1
+taskkill /f /fi "windowtitle eq Backend API Server*" >nul 2>&1
+taskkill /f /fi "windowtitle eq Expo Metro Bundler*" >nul 2>&1
+timeout /t 2 >nul
 
 echo [+] Dang cap nhat Prisma Client (Database Client)...
 cd apps\api

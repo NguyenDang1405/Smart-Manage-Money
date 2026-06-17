@@ -1,27 +1,31 @@
 import type { Request, Response, NextFunction } from "express";
-import { JWTUtils, type TokenPayload } from "../shared/jwt";
+import { prisma } from "../shared/prisma";
+import { clerkClient } from "@clerk/express";
 import { AppError } from "../shared/app-error";
 
 // Extend Express Request to include authenticated user info
 declare global {
   namespace Express {
     interface Request {
-      user?: TokenPayload;
+      user?: {
+        userId: string;
+        email: string;
+      };
     }
   }
 }
 
 /**
- * Middleware to authenticate requests via JWT Bearer token.
- * - Missing token → 401 UNAUTHORIZED
- * - Expired token → 401 TOKEN_EXPIRED (signals client to auto-logout)
- * - Invalid token → 401 UNAUTHORIZED
- * - Valid token → attaches decoded payload to `req.user` and proceeds
+ * Middleware to authenticate requests via Clerk.
+ * - Extracts Clerk auth state.
+ * - If user is not authenticated, returns 401 UNAUTHORIZED.
+ * - Synchronizes Clerk user with our local Prisma database.
+ * - Attaches user details to `req.user` for backward compatibility.
  */
-function authenticate(req: Request, _res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+async function authenticate(req: Request, _res: Response, next: NextFunction) {
+  const clerkAuth = (req as any).auth;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!clerkAuth || !clerkAuth.userId) {
     return next(
       new AppError({
         message: "Authentication required",
@@ -31,43 +35,63 @@ function authenticate(req: Request, _res: Response, next: NextFunction) {
     );
   }
 
-  const token = authHeader.split(" ")[1];
+  const clerkId = clerkAuth.userId;
 
-  if (!token) {
-    return next(
-      new AppError({
-        message: "Authentication required",
-        status: 401,
-        code: "UNAUTHORIZED",
-      })
-    );
+  try {
+    // 1. Find user in our local database
+    let user = await prisma.user.findUnique({
+      where: { clerkId },
+    });
+
+    // 2. If user doesn't exist, sync with Clerk
+    if (!user) {
+      const clerkUser = await clerkClient.users.getUser(clerkId);
+      const email = clerkUser.emailAddresses[0]?.emailAddress;
+
+      if (!email) {
+        return next(
+          new AppError({
+            message: "User email not found in Clerk",
+            status: 400,
+            code: "BAD_REQUEST",
+          })
+        );
+      }
+
+      // Check if user already exists with this email (registered before Clerk integration)
+      user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (user) {
+        // Link existing user to Clerk ID
+        user = await prisma.user.update({
+          where: { email },
+          data: { clerkId },
+        });
+      } else {
+        // Create new user linked to Clerk ID
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            fullName: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || email.split("@")[0],
+            avatarUrl: clerkUser.imageUrl || null,
+          },
+        });
+      }
+    }
+
+    // 3. Attach user payload to request for downstream handlers
+    req.user = {
+      userId: user.id,
+      email: user.email,
+    };
+
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  const result = JWTUtils.verifyToken(token);
-
-  if (!result.valid && result.expired) {
-    return next(
-      new AppError({
-        message: "Token has expired. Please login again.",
-        status: 401,
-        code: "TOKEN_EXPIRED",
-      })
-    );
-  }
-
-  if (!result.valid) {
-    return next(
-      new AppError({
-        message: "Invalid authentication token",
-        status: 401,
-        code: "UNAUTHORIZED",
-      })
-    );
-  }
-
-  // Attach user payload to request for downstream handlers
-  req.user = result.payload;
-  next();
 }
 
 export { authenticate };

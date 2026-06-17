@@ -9,7 +9,8 @@ datasource db {
 model User {
   id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email         String              @unique
-  passwordHash  String              @map("password_hash")
+  passwordHash  String?             @map("password_hash")
+  clerkId       String?             @unique @map("clerk_id")
   fullName      String?             @map("full_name")
   avatarUrl     String?             @map("avatar_url")
   monthlyIncome Decimal?            @map("monthly_income") @db.Decimal(15, 0)

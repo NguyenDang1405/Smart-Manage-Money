@@ -3,7 +3,6 @@ import {
   View, 
   ScrollView, 
   TouchableOpacity, 
-  Image, 
   Alert, 
   RefreshControl,
   Modal,
@@ -12,11 +11,13 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTransactions } from '../context/TransactionsContext';
+import { useUser } from '@clerk/clerk-expo';
 import AppBottomTab from '../components/AppBottomTab';
 import { apiClient } from '../lib/http';
 import * as Print from 'expo-print';
@@ -277,8 +278,13 @@ const translations = {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { logout } = useTransactions();
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const { 
+    logout, 
+    userProfile, 
+    fetchUserProfile, 
+    localAvatarOverride 
+  } = useTransactions();
+  const { user: clerkUser } = useUser();
   const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -315,15 +321,7 @@ export default function ProfileScreen() {
   // Category filter state
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'custom'>('all');
 
-  const fetchProfile = async () => {
-    try {
-      const res = await apiClient.get('/users/profile');
-      const data = res.data?.data || res.data;
-      setUserProfile(data);
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-    }
-  };
+
 
   const fetchCategories = async () => {
     try {
@@ -337,7 +335,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchProfile();
+      fetchUserProfile();
       fetchCategories();
     }, [])
   );
@@ -365,7 +363,7 @@ export default function ProfileScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchProfile();
+    await fetchUserProfile();
     await fetchCategories();
     setRefreshing(false);
   };
@@ -870,7 +868,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const name = userProfile?.alias || userProfile?.fullName || (langCode === 'vi' ? 'Người dùng' : 'User');
+  const name = userProfile?.alias || userProfile?.fullName || clerkUser?.fullName || (langCode === 'vi' ? 'Người dùng' : 'User');
   const firstName = name.split(' ').pop() || name;
 
   const formatCurrencyShort = (amount: number) => {
@@ -896,8 +894,12 @@ export default function ProfileScreen() {
         <View className="flex-row items-center gap-4">
           <Feather name="calendar" size={22} color="#0D9488" />
           <View className="w-8 h-8 rounded-full bg-teal-100 items-center justify-center overflow-hidden">
-            {userProfile?.avatarUrl ? (
-              <Image source={{ uri: `${baseUrl}${userProfile.avatarUrl}` }} className="w-full h-full" />
+            {localAvatarOverride || userProfile?.avatarUrl || clerkUser?.imageUrl ? (
+              <Image 
+                source={{ uri: localAvatarOverride || (userProfile?.avatarUrl ? (userProfile.avatarUrl.startsWith('http') ? userProfile.avatarUrl : `${baseUrl}${userProfile.avatarUrl}`) : clerkUser?.imageUrl) }} 
+                style={{ width: '100%', height: '100%' }} 
+                transition={150} 
+              />
             ) : (
               <Feather name="user" size={16} color="#0D9488" />
             )}
@@ -915,8 +917,12 @@ export default function ProfileScreen() {
         <View className="items-center mt-6 mb-6">
           <TouchableOpacity onPress={navigateToEdit} className="relative mb-3">
             <View className="w-20 h-20 rounded-full border-2 border-teal-500 items-center justify-center overflow-hidden bg-white shadow-sm">
-              {userProfile?.avatarUrl ? (
-                <Image source={{ uri: `${baseUrl}${userProfile.avatarUrl}` }} className="w-full h-full" />
+              {localAvatarOverride || userProfile?.avatarUrl || clerkUser?.imageUrl ? (
+                <Image 
+                  source={{ uri: localAvatarOverride || (userProfile?.avatarUrl ? (userProfile.avatarUrl.startsWith('http') ? userProfile.avatarUrl : `${baseUrl}${userProfile.avatarUrl}`) : clerkUser?.imageUrl) }} 
+                  style={{ width: '100%', height: '100%' }} 
+                  transition={150} 
+                />
               ) : (
                 <Feather name="user" size={40} color="#0D9488" />
               )}
@@ -926,10 +932,10 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
           <Text className="text-lg font-bold text-slate-800" style={{ fontFamily: 'Manrope-Bold' }}>
-            {userProfile?.fullName || 'Nguyễn Văn Minh'}
+            {userProfile?.fullName || clerkUser?.fullName || ''}
           </Text>
           <Text className="text-xs text-slate-500 mt-1" style={{ fontFamily: 'Manrope-Medium' }}>
-            {userProfile?.email || 'minh.nguyen@example.com'}
+            {userProfile?.email || clerkUser?.primaryEmailAddress?.emailAddress || ''}
           </Text>
           <Text className="text-[10px] text-slate-400 mt-1">
             {t.memberSince}: {userProfile?.createdAt ? new Date(userProfile.createdAt).toLocaleDateString(langCode === 'vi' ? 'vi-VN' : 'en-US', {month: '2-digit', year: 'numeric'}) : '05/2026'}

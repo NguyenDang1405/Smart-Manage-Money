@@ -28,14 +28,34 @@ function errorHandler(
     return ApiResponse.error(res, 400, validationError);
   }
 
-  console.error("[Unhandled Error]", err);
+  // Handle Clerk errors
+  if (err && typeof err === 'object' && 'clerkError' in err) {
+    console.error("[Clerk Error]", JSON.stringify(err, null, 2));
+    const clerkErr = err as any;
+    const fallbackError: ApiError = {
+      code: "CLERK_ERROR",
+      message: clerkErr.message || "Clerk authentication error",
+    };
+    return ApiResponse.error(res, clerkErr.status || 401, fallbackError);
+  }
+
+  // Log full error for debugging
+  const errObj = err as any;
+  console.error("[Unhandled Error]", {
+    message: errObj?.message,
+    stack: errObj?.stack?.split('\n').slice(0, 5).join('\n'),
+    name: errObj?.name,
+    code: errObj?.code,
+    status: errObj?.status,
+  });
 
   const fallbackError: ApiError = {
     code: ErrorCodes.INTERNAL_ERROR,
-    message: "Internal Server Error",
+    message: errObj?.message || "Internal Server Error",
   };
 
-  return ApiResponse.error(res, 500, fallbackError);
+  return ApiResponse.error(res, errObj?.status || 500, fallbackError);
 }
 
 export { errorHandler };
+

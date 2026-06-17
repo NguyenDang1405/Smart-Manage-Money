@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, Alert, TextInput, Platform, Switch } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, TextInput, Platform, Switch } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import { useTransactions } from '../context/TransactionsContext';
 export default function EditProfileScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const { logout } = useTransactions();
+  const { logout, setUserProfile, setLocalAvatarOverride } = useTransactions();
   const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
   
   const [profile, setProfile] = useState({
@@ -58,7 +59,7 @@ export default function EditProfileScreen() {
           email: data.email || '',
           monthlyIncome: data.monthlyIncome ? String(data.monthlyIncome) : '',
           currency: data.currency || 'VND',
-          avatarUrl: data.avatarUrl ? `${baseUrl}${data.avatarUrl}` : null,
+          avatarUrl: data.avatarUrl ? (data.avatarUrl.startsWith('http') ? data.avatarUrl : `${baseUrl}${data.avatarUrl}`) : null,
           financialGoals: data.financialGoals || [],
         };
         
@@ -117,10 +118,15 @@ export default function EditProfileScreen() {
     setLoading(true);
     try {
       // 1. Upload Avatar if changed
+      let newAvatarUrl = profile.avatarUrl;
       if (avatarFile) {
         const formData = new FormData();
-        if (Platform.OS === 'web' && avatarFile.file) {
-          formData.append('avatar', avatarFile.file);
+        if (Platform.OS === 'web') {
+          const response = await fetch(avatarFile.uri);
+          const blob = await response.blob();
+          const filename = avatarFile.fileName || `avatar-${Date.now()}.jpg`;
+          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+          formData.append('avatar', file);
         } else {
           formData.append('avatar', {
             uri: avatarFile.uri,
@@ -131,7 +137,12 @@ export default function EditProfileScreen() {
 
         const headers = Platform.OS === 'web' ? {} : { 'Content-Type': 'multipart/form-data' };
 
-        await apiClient.post('/users/avatar', formData, { headers });
+        const uploadRes = await apiClient.post('/users/avatar', formData, { headers });
+        const uploadData = uploadRes.data?.data || uploadRes.data;
+        if (uploadData && uploadData.avatarUrl) {
+          newAvatarUrl = uploadData.avatarUrl;
+          setLocalAvatarOverride(avatarFile.uri);
+        }
       }
 
       // 2. Update Profile fields
@@ -159,6 +170,25 @@ export default function EditProfileScreen() {
       // 3. Update Security settings
       await apiClient.patch('/users/security', {
         biometricEnabled: biometricEnabled
+      });
+
+      // Synchronize changes to global userProfile context state
+      const updatedCurrency = profile.currency.split(' - ')[0];
+      setUserProfile((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          fullName: profile.fullName,
+          alias: profile.alias,
+          dateOfBirth: profile.dateOfBirth || null,
+          gender: genderMapRev[profile.gender] || 'other',
+          phoneNumber: profile.phoneNumber,
+          monthlyIncome: profile.monthlyIncome ? parseFloat(profile.monthlyIncome) : prev.monthlyIncome,
+          currency: updatedCurrency,
+          financialGoals: profile.financialGoals,
+          avatarUrl: newAvatarUrl,
+          biometricEnabled: biometricEnabled,
+        };
       });
 
       // 4. Update Password if filled (only when both fields are non-empty)
@@ -272,7 +302,11 @@ export default function EditProfileScreen() {
           <TouchableOpacity onPress={pickImage} className="relative mb-3">
             <View className="w-24 h-24 rounded-full border-2 border-teal-500 overflow-hidden bg-slate-100 items-center justify-center">
               {profile.avatarUrl ? (
-                <Image source={{ uri: profile.avatarUrl }} className="w-full h-full" />
+                <Image 
+                  source={{ uri: profile.avatarUrl }} 
+                  style={{ width: '100%', height: '100%' }} 
+                  transition={150} 
+                />
               ) : (
                 <Feather name="user" size={40} color="#94A3B8" />
               )}

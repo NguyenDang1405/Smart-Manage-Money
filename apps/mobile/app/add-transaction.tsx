@@ -129,8 +129,12 @@ export default function AddTransactionScreen() {
       formData.append('date', new Date().toISOString().split('T')[0]);
 
       if (receiptFile) {
-        if (Platform.OS === 'web' && receiptFile.file) {
-          formData.append('receipt', receiptFile.file);
+        if (Platform.OS === 'web') {
+          const response = await fetch(receiptFile.uri);
+          const blob = await response.blob();
+          const filename = receiptFile.fileName || `receipt-${Date.now()}.jpg`;
+          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+          formData.append('receipt', file);
         } else {
           formData.append('receipt', {
             uri: receiptFile.uri,

@@ -47,7 +47,7 @@ async function getMe(req: Request, res: Response, next: NextFunction) {
         code: "UNAUTHORIZED",
       });
     }
-    const user = await AuthRepository.getUserByEmail(req.user.email);
+    let user = await AuthRepository.getUserByEmail(req.user.email);
     if (!user) {
       throw new AppError({
         message: "User not found",
@@ -55,6 +55,33 @@ async function getMe(req: Request, res: Response, next: NextFunction) {
         code: "NOT_FOUND",
       });
     }
+
+    // Sync profile from Clerk (avatar, fullName) when user checks their profile
+    if (user.clerkId) {
+      try {
+        const { clerkClient } = await import("@clerk/express");
+        const clerkUser = await clerkClient.users.getUser(user.clerkId);
+        const clerkFullName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim();
+        const clerkAvatar = clerkUser.imageUrl || null;
+        const needsUpdate =
+          (clerkAvatar && clerkAvatar !== user.avatarUrl && !user.avatarUrl?.startsWith('/uploads/')) ||
+          (clerkFullName && clerkFullName !== user.fullName);
+
+        if (needsUpdate) {
+          const { prisma } = await import("../../shared/prisma");
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              ...(clerkAvatar && clerkAvatar !== user.avatarUrl && !user.avatarUrl?.startsWith('/uploads/') ? { avatarUrl: clerkAvatar } : {}),
+              ...(clerkFullName && clerkFullName !== user.fullName ? { fullName: clerkFullName } : {}),
+            },
+          });
+        }
+      } catch (syncErr) {
+        console.warn("Could not sync Clerk profile:", syncErr);
+      }
+    }
+
     const { passwordHash: _, ...userWithoutPassword } = user;
     ApiResponse.ok(res, { user: userWithoutPassword }, "Authenticated user info");
   } catch (error) {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Text } from "@/components/ui/text";
 import { useRouter, useFocusEffect } from "expo-router";
-import { View, Pressable, ScrollView, TouchableOpacity, Platform, Image } from "react-native";
+import { useUser } from "@clerk/clerk-expo";
+import { View, Pressable, ScrollView, TouchableOpacity, Platform } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Home, PiggyBank, User, Wallet, Utensils, Car, DollarSign, ShoppingCart, Bot } from "lucide-react-native";
@@ -20,7 +22,15 @@ import RecurringExpenseCard from "../components/RecurringExpenseCard";
 
 export default function Index() {
   const router = useRouter();
-  const { transactions, stats, refreshTransactions } = useTransactions();
+  const { 
+    transactions, 
+    stats, 
+    refreshTransactions,
+    userProfile,
+    fetchUserProfile,
+    localAvatarOverride
+  } = useTransactions();
+  const { user: clerkUser } = useUser();
   const baseUrl = Platform.OS === 'web' ? 'http://localhost:4000' : (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
 
   const gotoAddTransaction = () => {
@@ -46,7 +56,6 @@ export default function Index() {
   };
 
   // User Profile and Real-time Clock states
-  const [userProfile, setUserProfile] = useState<any>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   // Real-time Budget progression states
@@ -102,20 +111,7 @@ export default function Index() {
   } | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
 
-  const fetchUserProfile = async () => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return;
 
-      const response = await apiClient.get("/auth/me");
-      const data = response.data?.data || response.data;
-      if (data && data.user) {
-        setUserProfile(data.user);
-      }
-    } catch (error) {
-      console.warn("Lỗi fetch user profile ở Dashboard:", error);
-    }
-  };
 
   const fetchBudgetSummary = async () => {
     try {
@@ -196,6 +192,7 @@ export default function Index() {
 
   useFocusEffect(
     useCallback(() => {
+      fetchUserProfile();
       refreshTransactions();
     }, [])
   );
@@ -399,13 +396,13 @@ export default function Index() {
         {/* Welcome Header with Date Badge */}
         <View className="flex-row items-center justify-between mb-6 mt-2 gap-2">
           <View className="flex-row items-center gap-2.5 flex-1 min-w-0">
-            {/* User Avatar */}
             <View className="w-9 h-9 rounded-full border border-teal-200 overflow-hidden bg-teal-50 justify-center items-center shrink-0">
-              {userProfile?.avatarUrl ? (
+              {localAvatarOverride || userProfile?.avatarUrl || clerkUser?.imageUrl ? (
                 <Image 
-                  source={{ uri: `${baseUrl}${userProfile.avatarUrl}` }} 
+                  source={{ uri: localAvatarOverride || (userProfile?.avatarUrl ? (userProfile.avatarUrl.startsWith('http') ? userProfile.avatarUrl : `${baseUrl}${userProfile.avatarUrl}`) : clerkUser?.imageUrl) }} 
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="cover"
+                  transition={150}
                 />
               ) : (
                 <User size={18} color="#0D9488" />
@@ -417,7 +414,7 @@ export default function Index() {
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              Xin chào, {userProfile?.fullName || "Minh"} 👋
+              Xin chào, {userProfile?.fullName || clerkUser?.fullName || ""} 👋
             </Text>
           </View>
           {/* Date Badge */}

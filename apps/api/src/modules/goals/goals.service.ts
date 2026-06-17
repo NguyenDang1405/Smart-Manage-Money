@@ -1,5 +1,5 @@
 import { prisma } from "../../shared/prisma";
-import { GoogleGenAI } from "@google/genai";
+import { HfInference } from '@huggingface/inference';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -253,16 +253,9 @@ async function getGoalPrediction(userId: string, goalId: string): Promise<AIPred
     : `Để đạt mục tiêu "${goal.name}" đúng hạn, bạn cần tiết kiệm thêm ${shortfallPerMonth.toLocaleString("vi-VN")}đ/tháng. Thử cắt giảm chi tiêu giải trí hoặc ăn uống ngoài.`;
 
   try {
-    if (process.env.GEMINI_API_KEY) {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-      const topExpenseCategories = await prisma.transaction.groupBy({
-        by: ["categoryId"],
-        where: { userId, type: "expense", transactionDate: { gte: threeMonthsAgo } },
-        _sum: { amount: true },
-        orderBy: { _sum: { amount: "desc" } },
-        take: 3,
-      });
+    const hfApiKey = process.env.HF_API_KEY || process.env.HUGGINGFACE_API_KEY;
+    if (hfApiKey && !hfApiKey.startsWith("your_")) {
+      const hf = new HfInference(hfApiKey);
 
       const prompt = `Người dùng có mục tiêu tài chính: "${goal.name}"
 - Số tiền mục tiêu: ${target.toLocaleString("vi-VN")}đ
@@ -275,13 +268,14 @@ async function getGoalPrediction(userId: string, goalId: string): Promise<AIPred
 
 Hãy đưa ra 1 lời khuyên cụ thể, thực tế, actionable bằng tiếng Việt (1-2 câu) để giúp người dùng đạt mục tiêu đúng hạn. Tập trung vào số tiền cụ thể cần thay đổi.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.7 },
+      const response = await hf.chatCompletion({
+        model: "Qwen/Qwen2.5-72B-Instruct",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 500,
+        temperature: 0.7,
       });
 
-      const raw = response.text?.trim() || "";
+      const raw = response.choices[0]?.message?.content?.trim() || "";
       if (raw.length > 20) aiSuggestion = raw;
     }
   } catch {

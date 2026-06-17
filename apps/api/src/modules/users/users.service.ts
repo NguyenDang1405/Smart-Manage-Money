@@ -127,6 +127,19 @@ async function updateProfile(userId: string, data: UpdateProfileInput, avatarUrl
     updatedData.avatarUrl = avatarUrl;
   }
 
+  // Update in Clerk if fullName is updated
+  if (data.fullName && user.clerkId) {
+    try {
+      const { clerkClient } = await import("@clerk/express");
+      await clerkClient.users.updateUser(user.clerkId, {
+        firstName: data.fullName.split(' ')[0] || '',
+        lastName: data.fullName.split(' ').slice(1).join(' ') || '',
+      });
+    } catch (clerkErr) {
+      console.warn("Could not sync profile update to Clerk:", clerkErr);
+    }
+  }
+
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: updatedData,

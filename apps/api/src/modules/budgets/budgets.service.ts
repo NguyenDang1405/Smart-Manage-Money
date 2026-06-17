@@ -3,7 +3,7 @@ import { prisma } from "../../shared/prisma";
 import { AppError } from "../../shared/app-error";
 import type { GetBudgetsQuery, UpsertBudgetInput } from "./budgets.schema";
 
-import { GoogleGenAI } from "@google/genai";
+import { HfInference } from '@huggingface/inference';
 
 async function getBudgets(userId: string, query: Partial<GetBudgetsQuery> = {}) {
   const currentDate = new Date();
@@ -233,8 +233,9 @@ async function suggestBudgetsWithAI(userId: string, targetMonth?: number, target
       };
     });
 
-  // Fallback to mock data if there is no Gemini API key configured
-  if (!process.env.GEMINI_API_KEY) {
+  // Fallback to mock data if there is no HuggingFace API key configured
+  const hfApiKey = process.env.HF_API_KEY || process.env.HUGGINGFACE_API_KEY;
+  if (!hfApiKey || hfApiKey.startsWith("your_")) {
     return {
       suggestions: historicalContext.map(c => {
         const hasSpending = c.averageMonthlySpending > 0;
@@ -253,12 +254,12 @@ async function suggestBudgetsWithAI(userId: string, targetMonth?: number, target
         };
       }),
       isMock: true,
-      message: "Vui lòng cấu hình GEMINI_API_KEY trong .env để nhận gợi ý từ AI."
+      message: "Vui lòng cấu hình HF_API_KEY trong .env để nhận gợi ý từ AI."
     };
   }
 
-  // Use Gemini API
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Use HuggingFace Qwen API
+  const hf = new HfInference(hfApiKey);
   
   const prompt = `Bạn là một chuyên gia tài chính. Dưới đây là dữ liệu chi tiêu trung bình hàng tháng của một người dùng trong 3 tháng qua:
 ${JSON.stringify(historicalContext, null, 2)}
@@ -280,19 +281,21 @@ Trả về KẾT QUẢ DUY NHẤT LÀ MỘT MẢNG JSON, tuân thủ CẤU TRÚC
 ]`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
+    const response = await hf.chatCompletion({
+      model: "Qwen/Qwen2.5-72B-Instruct",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1500,
+      temperature: 0.5,
     });
     
-    let text = response.text || "[]";
+    let text = response.choices[0]?.message?.content || "[]";
     // Clean up potential markdown formatting from LLM response
     text = text.replace(/```json\n?|```/g, "").trim();
     
     const suggestions = JSON.parse(text);
     return { suggestions };
   } catch (error) {
-    console.error("Lỗi gọi Gemini API:", error);
+    console.error("Lỗi gọi HuggingFace API:", error);
     // Fallback if AI fails
     return {
       suggestions: historicalContext.map(c => {

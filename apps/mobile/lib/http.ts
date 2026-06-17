@@ -36,10 +36,7 @@ export class ApiHttpError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL =
-  Platform.OS === "web"
-    ? "http://localhost:4000"
-    : (process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000");
+const DEFAULT_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000";
 
 const instance: AxiosInstance = axios.create({
   baseURL: DEFAULT_BASE_URL,
@@ -55,9 +52,14 @@ const instance: AxiosInstance = axios.create({
 
 let authToken: string | null = null;
 let onUnauthorizedCallback: (() => void) | null = null;
+let getTokenFn: (() => Promise<string | null>) | null = null;
 
 export function setOnUnauthorizedCallback(cb: () => void) {
   onUnauthorizedCallback = cb;
+}
+
+export function setGetTokenFunction(fn: (() => Promise<string | null>) | null) {
+  getTokenFn = fn;
 }
 
 export async function setAuthToken(token: string | null) {
@@ -78,17 +80,35 @@ export async function getAuthToken(): Promise<string | null> {
   return authToken;
 }
 
+let tokenLastFetched = 0;
+
 // Request interceptor ensures latest token is used and FormData Content-Type is correct
 instance.interceptors.request.use(async (cfg) => {
-  if (authToken) {
-    cfg.headers = cfg.headers || {};
-    cfg.headers["Authorization"] = `Bearer ${authToken}`;
+  let token = authToken;
+  const now = Date.now();
+
+  if (getTokenFn && (!token || now - tokenLastFetched > 40_000)) {
+    try {
+      const freshToken = await getTokenFn();
+      if (freshToken) {
+        token = freshToken;
+        authToken = freshToken;
+        tokenLastFetched = Date.now();
+      }
+    } catch (e) {
+      console.warn("Failed to retrieve fresh Clerk token:", e);
+    }
+  }
+
+  cfg.headers = cfg.headers || {};
+  if (token) {
+    cfg.headers["Authorization"] = `Bearer ${token}`;
   }
   // Khi gửi FormData, xóa Content-Type để browser tự thêm multipart/form-data + boundary
   if (cfg.data instanceof FormData) {
     // Xóa bằng nhiều cách để đảm bảo hoạt động với mọi phiên bản axios
     cfg.headers["Content-Type"] = undefined;
-    if (cfg.headers && typeof cfg.headers.delete === "function") {
+    if (typeof cfg.headers.delete === "function") {
       cfg.headers.delete("Content-Type");
     }
   }
@@ -209,6 +229,7 @@ export default {
   apiClient: instance,
   setAuthToken,
   setOnUnauthorizedCallback,
+  setGetTokenFunction,
   apiGet,
   apiPost,
 };

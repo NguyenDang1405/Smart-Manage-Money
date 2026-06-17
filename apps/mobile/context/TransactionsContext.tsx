@@ -2,7 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiClient, getAuthToken, setAuthToken, setOnUnauthorizedCallback } from '../lib/http';
+import { apiClient, getAuthToken, setAuthToken, setOnUnauthorizedCallback, setGetTokenFunction } from '../lib/http';
+import { useAuth } from '@clerk/clerk-expo';
 
 export type Transaction = {
   id: string;
@@ -38,12 +39,18 @@ type TransactionsContextType = {
   stats: { totalIncome: number; totalExpense: number; currentBalance: number };
   login: (newToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  userProfile: any | null;
+  setUserProfile: React.Dispatch<React.SetStateAction<any | null>>;
+  fetchUserProfile: () => Promise<void>;
+  localAvatarOverride: string | null;
+  setLocalAvatarOverride: (url: string | null) => void;
 };
 
 const TransactionsContext = createContext<TransactionsContextType | undefined>(undefined);
 
 export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
+  const { isLoaded, userId, getToken, signOut } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,9 +65,23 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [stats, setStats] = useState({ totalIncome: 0, totalExpense: 0, currentBalance: 0 });
 
+  const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [localAvatarOverride, setLocalAvatarOverride] = useState<string | null>(null);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await apiClient.get('/users/profile');
+      const data = response.data?.data || response.data;
+      if (data) {
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.warn("Lỗi fetch user profile ở Context:", error);
+    }
+  };
+
   const login = async (newToken: string) => {
     await setAuthToken(newToken);
-    await AsyncStorage.setItem('smm_auth_token', newToken);
     setToken(newToken);
     // Reset previous lists and stats to avoid data leaks
     setTransactions([]);
@@ -70,9 +91,15 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const logout = async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      console.warn("SignOut error", e);
+    }
     await setAuthToken(null);
-    await AsyncStorage.removeItem('smm_auth_token');
     setToken(null);
+    setUserProfile(null);
+    setLocalAvatarOverride(null);
     setTransactions([]);
     setStats({ totalIncome: 0, totalExpense: 0, currentBalance: 0 });
     router.replace('/auth');
@@ -168,28 +195,50 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
       logout();
       Alert.alert('Phiên hết hạn', 'Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại.');
     });
+  }, []);
 
-    async function initSessionAndFetch() {
-      setIsLoading(true);
-      try {
-        let t = await AsyncStorage.getItem('smm_auth_token');
-        if (!t) {
-          router.replace('/auth');
+  // Đăng ký hàm lấy token động để tự động làm mới JWT trước mỗi API request
+  useEffect(() => {
+    if (isLoaded && userId) {
+      setGetTokenFunction(getToken);
+    } else {
+      setGetTokenFunction(null);
+    }
+  }, [isLoaded, userId, getToken]);
+
+  // Đồng bộ trạng thái Auth của Clerk với Backend
+  useEffect(() => {
+    async function syncClerkAuth() {
+      if (!isLoaded) return;
+
+      if (userId) {
+        setIsLoading(true);
+        try {
+          const clerkToken = await getToken();
+          if (clerkToken) {
+            await setAuthToken(clerkToken);
+            setToken(clerkToken);
+            await fetchUserProfile();
+            await refreshTransactions();
+          }
+        } catch (err) {
+          console.warn('Lỗi đồng bộ Clerk token:', err);
+        } finally {
           setIsLoading(false);
-          return;
         }
-        await setAuthToken(t);
-        setToken(t);
-        await refreshTransactions();
-      } catch (err) {
-        console.warn('Lỗi init session:', err);
-        setIsLoading(false);
+      } else {
+        await setAuthToken(null);
+        setToken(null);
+        setUserProfile(null);
+        setLocalAvatarOverride(null);
+        setTransactions([]);
+        setStats({ totalIncome: 0, totalExpense: 0, currentBalance: 0 });
+        router.replace('/auth');
       }
     }
 
-    initSessionAndFetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    syncClerkAuth();
+  }, [isLoaded, userId]);
 
   const fetchMoreTransactions = async () => {
     if (isLoadingMore || !hasMore) return;
@@ -316,6 +365,11 @@ export const TransactionsProvider: React.FC<{ children: React.ReactNode }> = ({ 
         stats,
         login,
         logout,
+        userProfile,
+        setUserProfile,
+        fetchUserProfile,
+        localAvatarOverride,
+        setLocalAvatarOverride,
       }}
     >
       {children}

@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import path from "path";
+import { clerkMiddleware } from "@clerk/express";
 
 import { errorHandler } from "./middleware/error-handler";
 import { modulesRouter } from "./modules";
@@ -11,6 +12,7 @@ const port = Number(process.env["PORT"]) || 4000;
 
 app.use(cors());
 app.use(express.json());
+app.use(clerkMiddleware());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Serve uploaded files (receipt images, etc.)
