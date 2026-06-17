@@ -24,15 +24,26 @@ function HealthScoreCol({ score, label, color, savingsScore, budgetScore }: {
   savingsScore: number;
   budgetScore: number;
 }) {
-  const displayScore = score || 55;
-  const displayLabel = label || 'Khá';
-  const displayColor = color || '#d97706'; // default orange/coral
+  const displayScore = score || 0;
+  const displayLabel = label || 'Chưa đánh giá';
+  const displayColor = color || '#cbd5e1'; // default grey
 
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       {/* Badge */}
-      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 8 }}>
-        <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: '800', fontFamily: 'Manrope-Bold' }}>
+      <View style={{ 
+        backgroundColor: displayColor === '#cbd5e1' ? '#f1f5f9' : '#FEE2E2', 
+        paddingHorizontal: 12, 
+        paddingVertical: 4, 
+        borderRadius: 12, 
+        marginBottom: 8 
+      }}>
+        <Text style={{ 
+          fontSize: 10, 
+          color: displayColor === '#cbd5e1' ? '#64748b' : '#EF4444', 
+          fontWeight: '800', 
+          fontFamily: 'Manrope-Bold' 
+        }}>
           {displayLabel}
         </Text>
       </View>
@@ -43,7 +54,7 @@ function HealthScoreCol({ score, label, color, savingsScore, budgetScore }: {
         height: 80,
         borderRadius: 40,
         borderWidth: 6,
-        borderColor: displayColor === '#16a34a' ? '#16a34a' : '#EF4444',
+        borderColor: displayColor === '#16a34a' ? '#16a34a' : (displayColor === '#cbd5e1' ? '#e2e8f0' : '#EF4444'),
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 12,
@@ -99,13 +110,33 @@ function HealthScoreCol({ score, label, color, savingsScore, budgetScore }: {
 
 // ─── Sub-Component: Spending Bar Chart ────────────────────────────────────
 function SpendingBarChart({ data }: { data: Array<{ name: string; amount: number }> }) {
-  const chartData = data.length > 0 ? data.slice(0, 4) : [
-    { name: 'Ăn uống', amount: 400000 },
-    { name: 'Di chuyển', amount: 300000 },
-    { name: 'Thuê nhà', amount: 200000 },
-    { name: 'Chi tiêu', amount: 100000 },
-  ];
+  if (data.length === 0) {
+    return (
+      <View style={{ flex: 1, paddingRight: 5, minHeight: 150 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: '#1e293b', fontFamily: 'Manrope-Bold', marginBottom: 12 }}>
+          Phân tích Chi tiêu
+        </Text>
+        <View style={{ 
+          flex: 1, 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          backgroundColor: '#f8fafc', 
+          borderRadius: 16, 
+          padding: 16, 
+          borderStyle: 'dashed', 
+          borderWidth: 1, 
+          borderColor: '#e2e8f0',
+          minHeight: 110
+        }}>
+          <Text style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'Manrope-Medium', textAlign: 'center' }}>
+            Chưa có dữ liệu chi tiêu
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
+  const chartData = data.slice(0, 4);
   while (chartData.length < 4) {
     chartData.push({ name: 'Khác', amount: 0 });
   }
@@ -174,11 +205,33 @@ function SpendingBarChart({ data }: { data: Array<{ name: string; amount: number
 
 // ─── Sub-Component: Month-to-Month Compare Table ──────────────────────────
 function MonthlyCompareTable({ data }: { data: Array<{ name: string; current: number; prev: number }> }) {
-  const tableData = data.length > 0 ? data.slice(0, 4) : [
-    { name: 'Ăn uống', current: 200000, prev: 200000 },
-    { name: 'Di chuyển', current: 400000, prev: 200000 },
-    { name: 'Thuê nhà', current: 150000, prev: 150000 },
-  ];
+  if (data.length === 0) {
+    return (
+      <View style={{ flex: 1.1, paddingHorizontal: 4, minHeight: 150 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: '#1e293b', fontFamily: 'Manrope-Bold', marginBottom: 12 }}>
+          So sánh tháng trước
+        </Text>
+        <View style={{ 
+          flex: 1, 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          backgroundColor: '#f8fafc', 
+          borderRadius: 16, 
+          padding: 16, 
+          borderStyle: 'dashed', 
+          borderWidth: 1, 
+          borderColor: '#e2e8f0',
+          minHeight: 110
+        }}>
+          <Text style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'Manrope-Medium', textAlign: 'center' }}>
+            Chưa có dữ liệu so sánh
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const tableData = data.slice(0, 4);
 
   const formatAmount = (val: number) => {
     return val.toLocaleString('vi-VN');
@@ -246,13 +299,28 @@ function DetailedCategorySpending({ data, period }: {
   data: Array<{ categoryName: string; amount: number; percentage: number; color: string }>;
   period: string;
 }) {
-  const tableData = data.length > 0 ? data : [
-    { categoryName: 'Ăn uống', amount: 1800000, percentage: 45, color: '#0D9488' },
-    { categoryName: 'Di chuyển', amount: 1000000, percentage: 25, color: '#06B6D4' },
-    { categoryName: 'Mua sắm', amount: 600000, percentage: 15, color: '#F43F5E' },
-    { categoryName: 'Hóa đơn', amount: 400000, percentage: 10, color: '#10B981' },
-    { categoryName: 'Giải trí & Khác', amount: 200000, percentage: 5, color: '#8B5CF6' },
-  ];
+  const totalSpendingSum = data.reduce((acc, item) => acc + item.amount, 0);
+  if (data.length === 0 || totalSpendingSum === 0) {
+    return (
+      <View style={{
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(226,232,240,0.8)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 150,
+      }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: '#94a3b8', fontFamily: 'Manrope-Bold', textAlign: 'center' }}>
+          Không có phân tích chi tiêu chi tiết cho tháng {period}
+        </Text>
+      </View>
+    );
+  }
+
+  const tableData = data;
 
   const getCategoryIcon = (category: string, color: string) => {
     const lower = category.toLowerCase();
@@ -486,7 +554,7 @@ export default function Index() {
   }).sort((a, b) => b.current - a.current).slice(0, 3);
 
   // Dynamic AI Suggestions
-  let aiAssistantTip = 'Dựa trên chi tiêu, bạn nên tiết kiệm thêm và tối ưu hóa ngân sách!';
+  let aiAssistantTip = 'Hãy bắt đầu nhập giao dịch để tôi có thể hỗ trợ phân tích chi tiêu giúp bạn nhé!';
   if (spendingData.length > 0) {
     const topCatName = spendingData[0].name;
     if (topCatName.toLowerCase().includes('ăn') || topCatName.toLowerCase().includes('uống') || topCatName.toLowerCase().includes('thực phẩm')) {
@@ -496,7 +564,7 @@ export default function Index() {
     }
   }
 
-  let aiTipText = 'Cân nhắc giảm chi tiêu cho các mục phát sinh.';
+  let aiTipText = 'Hãy lập kế hoạch ngân sách và ghi chép giao dịch để nhận các mẹo tài chính hữu ích từ AI!';
   if (compareTableData.length > 0) {
     const increases = compareTableData.map(c => ({
       name: c.name,
@@ -511,12 +579,12 @@ export default function Index() {
   }
 
   // Health factors values
-  const healthScore = healthData?.score || 55;
-  const healthLabel = healthData?.label || 'Khá';
-  const healthColor = healthData?.color || '#d97706';
+  const healthScore = healthData?.score || 0;
+  const healthLabel = healthData?.label || 'Chưa đánh giá';
+  const healthColor = healthData?.color || '#cbd5e1';
   
-  const savingsRate = healthData?.factors?.find((f: any) => f.key === 'savings')?.score || 25;
-  const budgetCompliance = healthData?.factors?.find((f: any) => f.key === 'budget')?.score || 85;
+  const savingsRate = healthData?.factors?.find((f: any) => f.key === 'savings')?.score || 0;
+  const budgetCompliance = healthData?.factors?.find((f: any) => f.key === 'budget')?.score || 0;
 
   // Recent transactions list
   const displayTransactions = dashboardData !== null
