@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useUser } from '@clerk/clerk-expo';
+import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Home as HomeIcon, PiggyBank, User, Wallet, Utensils, Car, DollarSign, ShoppingCart, Bot, Coffee, RefreshCw, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as Print from 'expo-print';
@@ -409,6 +409,7 @@ export default function Index() {
 
   const { stats, userProfile, localAvatarOverride, fetchUserProfile } = useTransactions();
   const { user: clerkUser } = useUser();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
 
   const [loading, setLoading] = useState(false);
@@ -489,9 +490,11 @@ export default function Index() {
   };
 
   useEffect(() => {
+    // Only fetch when Clerk is ready and user is signed in
+    if (!isAuthLoaded || !isSignedIn) return;
     fetchUserProfile();
     fetchAllReportData();
-  }, [month, year]);
+  }, [month, year, isAuthLoaded, isSignedIn]);
 
   const gotoTransactionsList = () => router.push('/transactions');
   const gotoBudgets = () => router.push('/budgets');

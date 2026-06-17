@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Text } from "@/components/ui/text";
 import { LineChart } from "react-native-gifted-charts";
 import { apiClient, getAuthToken } from "../lib/http";
-import { useTransactions } from "../context/TransactionsContext";
+import { useAuth } from "@clerk/clerk-expo";
 
 export default function TrendChart() {
   const [period, setPeriod] = useState<"week" | "month">("month");
   const [trendData, setTrendData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { transactions } = useTransactions();
+  const { isLoaded, isSignedIn } = useAuth();
+  const hasFetched = useRef(false);
 
   const fetchTrendData = async (selectedPeriod: "week" | "month") => {
+    // Don't fetch if Clerk is not ready or user not signed in
+    if (!isLoaded || !isSignedIn) return;
+
     setLoading(true);
     try {
       const token = await getAuthToken();
@@ -33,8 +37,14 @@ export default function TrendChart() {
   };
 
   useEffect(() => {
-    fetchTrendData(period);
-  }, [period, transactions]); // refresh on period change or when transactions are updated
+    // Only fetch when Clerk is ready and user is signed in
+    if (isLoaded && isSignedIn) {
+      fetchTrendData(period);
+    } else if (isLoaded && !isSignedIn) {
+      setLoading(false);
+    }
+  }, [period, isLoaded, isSignedIn]); // removed 'transactions' — was causing infinite refetch loop
+
 
   const formatYAxis = (val: string | number) => {
     const num = Number(val);

@@ -4,9 +4,11 @@ import { Text } from "@/components/ui/text";
 import { BarChart } from "react-native-gifted-charts";
 import { apiClient, getAuthToken } from "../lib/http";
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "@clerk/clerk-expo";
 
 export default function CompareChart() {
   const currentDate = new Date();
+  const { isLoaded, isSignedIn } = useAuth();
   
   // Default: compare last month (m1) with current month (m2)
   const defaultM1 = `${currentDate.getMonth() === 0 ? 12 : currentDate.getMonth()}/${currentDate.getMonth() === 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()}`;
@@ -26,6 +28,9 @@ export default function CompareChart() {
   });
 
   const fetchCompareData = async () => {
+    // Don't fetch if Clerk is not ready or user not signed in
+    if (!isLoaded || !isSignedIn) return;
+
     setLoading(true);
     try {
       const token = await getAuthToken();
@@ -46,8 +51,12 @@ export default function CompareChart() {
   };
 
   useEffect(() => {
-    fetchCompareData();
-  }, [m1, m2]);
+    if (isLoaded && isSignedIn) {
+      fetchCompareData();
+    } else if (isLoaded && !isSignedIn) {
+      setLoading(false);
+    }
+  }, [m1, m2, isLoaded, isSignedIn]);
 
   const formatYAxis = (val: number | string) => {
     const num = Number(val);
