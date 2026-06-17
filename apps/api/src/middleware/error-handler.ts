@@ -33,7 +33,7 @@ function errorHandler(
     console.error("[Clerk Error]", JSON.stringify(err, null, 2));
     const clerkErr = err as any;
     const fallbackError: ApiError = {
-      code: "CLERK_ERROR",
+      code: ErrorCodes.UNAUTHORIZED,
       message: clerkErr.message || "Clerk authentication error",
     };
     return ApiResponse.error(res, clerkErr.status || 401, fallbackError);
