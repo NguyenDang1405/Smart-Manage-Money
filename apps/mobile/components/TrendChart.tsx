@@ -37,13 +37,16 @@ export default function TrendChart() {
     }
   }, [period, isLoaded, isSignedIn]);
 
-  const formatVal = (val: number | undefined) => {
-    if (val === undefined || val === null || isNaN(val)) return "0";
-    if (val >= 1000000000) return (val / 1000000000).toFixed(1).replace(/\.0$/, "") + " tỷ";
-    if (val >= 1000000) return (val / 1000000).toFixed(1).replace(/\.0$/, "") + " tr";
-    if (val >= 1000) return (val / 1000).toFixed(0) + " k";
-    return val.toString();
+  const formatVal = (val: number | string | undefined) => {
+    if (val === undefined || val === null) return "0";
+    const num = Number(val);
+    if (isNaN(num)) return String(val);
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1).replace(/\.0$/, "") + " tỷ";
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, "") + " tr";
+    if (num >= 1000) return (num / 1000).toFixed(0) + " k";
+    return num.toString();
   };
+
 
   const expenseData = trendData.map((item) => ({
     value: item.expense ?? 0,
